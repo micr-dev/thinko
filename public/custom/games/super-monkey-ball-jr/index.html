@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Super Monkey Ball Jr.</title>
+  <style>
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: 'Trebuchet MS', sans-serif;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #game {
+      width: 100%;
+      height: 100%;
+    }
+
+    .ejs_menu_bar {
+      display: none !important;
+    }
+
+    .ejs_parent,
+    .ejs_canvas,
+    #game > div {
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+  <script>
+    function notifyParent(payload) {
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage(
+            Object.assign(
+              { type: 'XP_GAME_LOADING', gameId: 'supermonkeyballjr' },
+              payload,
+            ),
+            window.location.origin,
+          );
+        }
+      } catch (error) {}
+    }
+
+    function markReady() {
+      notifyParent({
+        progress: 100,
+        label: 'Super Monkey Ball Jr. ready',
+        ready: true,
+      });
+    }
+
+    notifyParent({ progress: 8, label: 'Preparing emulator...' });
+
+    window.EJS_player = '#game';
+    window.EJS_core = 'gba';
+    window.EJS_color = '#000000';
+    window.EJS_startOnLoaded = true;
+    window.EJS_pathtodata =
+      'https://cdn.jsdelivr.net/gh/a456pur/seraph@81f551ca0aa8e3d6018d32d8ac5904ac9bc78f76/storage/emulatorjs/data';
+    window.EJS_gameUrl =
+      'https://cdn.jsdelivr.net/gh/bubbls/UGS-file-encryption@ac29b7dad0b732cd1aea9c1e14cfc9b53b50ef5b/Super%20Monkey%20Ball%20Jr.%20(USA).zip';
+
+    const loaderScript = document.createElement('script');
+    loaderScript.src =
+      'https://cdn.jsdelivr.net/gh/a456pur/seraph@81f551ca0aa8e3d6018d32d8ac5904ac9bc78f76/storage/emulatorjs/data/loader.js';
+    loaderScript.onload = function () {
+      notifyParent({ progress: 82, label: 'Starting emulator...' });
+      const hideMenu = function () {
+        document.querySelectorAll('.ejs_menu_bar').forEach(node => {
+          node.style.display = 'none';
+        });
+      };
+      const observer = new MutationObserver(hideMenu);
+      observer.observe(document.body, { childList: true, subtree: true });
+      hideMenu();
+      const readyPoll = window.setInterval(function () {
+        if (
+          document.querySelector('#game canvas') ||
+          document.querySelector('#game iframe')
+        ) {
+          window.clearInterval(readyPoll);
+          markReady();
+        }
+      }, 200);
+      window.setTimeout(function () {
+        window.clearInterval(readyPoll);
+        markReady();
+      }, 6000);
+    };
+    loaderScript.onerror = function () {
+      notifyParent({
+        progress: 100,
+        label: 'Failed to load Super Monkey Ball Jr.',
+        error: true,
+      });
+    };
+    document.body.appendChild(loaderScript);
+  </script>
+</body>
+</html>

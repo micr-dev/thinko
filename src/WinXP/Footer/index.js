@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 
 import FooterMenu from './FooterMenu';
-import Balloon from 'components/Balloon';
 import startButton from 'assets/windowsIcons/start.png';
 import sound from 'assets/windowsIcons/690(16x16).png';
 import usb from 'assets/windowsIcons/394(16x16).png';
@@ -36,7 +35,8 @@ function Footer({
   const [time, setTime] = useState(getTime);
   const [menuOn, setMenuOn] = useState(false);
   const menu = useRef(null);
-  function toggleMenu() {
+  function toggleMenu(e) {
+    e.stopPropagation();
     setMenuOn(on => !on);
   }
   function _onMouseDown(e) {
@@ -67,15 +67,17 @@ function Footer({
   return (
     <Container onMouseDown={_onMouseDown}>
       <div className="footer__items left">
-        <div ref={menu} className="footer__start__menu">
-          {menuOn && <FooterMenu onClick={_onClickMenuItem} />}
+        <div ref={menu} className="footer__start__wrapper">
+          <div className="footer__start__menu">
+            {menuOn && <FooterMenu onClick={_onClickMenuItem} />}
+          </div>
+          <img
+            src={startButton}
+            alt="start"
+            className="footer__start"
+            onMouseDown={toggleMenu}
+          />
         </div>
-        <img
-          src={startButton}
-          alt="start"
-          className="footer__start"
-          onMouseDown={toggleMenu}
-        />
         {[...apps].map(
           app =>
             !app.header.noFooterWindow && (
@@ -95,9 +97,6 @@ function Footer({
         <img className="footer__icon" src={sound} alt="" />
         <img className="footer__icon" src={usb} alt="" />
         <img className="footer__icon" src={risk} alt="" />
-        <div style={{ position: 'relative', width: 0, height: 0 }}>
-          <Balloon />
-        </div>
         <div className="footer__time">{time}</div>
       </div>
     </Container>
@@ -148,7 +147,8 @@ const Container = styled.footer`
   .footer__items.left {
     height: 100%;
     flex: 1;
-    overflow: hidden;
+    overflow: visible;
+    position: relative;
   }
   .footer__items.right {
     background-color: #0b77e9;
@@ -179,19 +179,24 @@ const Container = styled.footer`
   }
   .footer__start {
     height: 100%;
-    margin-right: 10px;
     position: relative;
     &:hover {
       filter: brightness(105%);
     }
     &:active {
-      pointer-events: none;
       filter: brightness(85%);
     }
+  }
+  .footer__start__wrapper {
+    position: relative;
+    height: 100%;
+    margin-right: 10px;
+    flex-shrink: 0;
   }
   .footer__start__menu {
     position: absolute;
     left: 0;
+    z-index: 1000;
     box-shadow: 2px 4px 2px rgba(0, 0, 0, 0.5);
     bottom: 100%;
   }

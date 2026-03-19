@@ -12,6 +12,7 @@ function Windows({
   onMinimize,
   onMaximize,
   focusedAppId,
+  launchApp,
 }) {
   return (
     <div style={{ position: 'relative', zIndex: 0 }}>
@@ -25,6 +26,7 @@ function Windows({
           onMouseUpMinimize={onMinimize}
           onMouseUpMaximize={onMaximize}
           isFocus={focusedAppId === app.id} // for styledWindow
+          launchApp={launchApp}
           {...app}
         />
       ))}
@@ -47,6 +49,7 @@ const Window = memo(function({
   component,
   zIndex,
   isFocus,
+  launchApp,
   className,
 }) {
   function _onMouseDown() {
@@ -134,6 +137,7 @@ const Window = memo(function({
           onClose: _onMouseUpClose,
           onMinimize: _onMouseUpMinimize,
           isFocus,
+          launchApp,
           ...injectProps,
         })}
       </div>
@@ -146,11 +150,13 @@ const StyledWindow = styled(Window)`
   position: absolute;
   padding: 3px;
   padding: ${({ header }) => (header.invisible ? 0 : 3)}px;
-  background-color: ${({ isFocus }) => (isFocus ? '#0831d9' : '#6582f5')};
+  background-color: ${({ header, isFocus }) =>
+    header.invisible ? 'transparent' : isFocus ? '#0831d9' : '#6582f5'};
   flex-direction: column;
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
   .header__bg {
+    display: ${({ header }) => (header.invisible ? 'none' : 'block')};
     background: ${({ isFocus }) =>
       isFocus
         ? 'linear-gradient(to bottom,#0058ee 0%,#3593ff 4%,#288eff 6%,#127dff 8%,#036ffc 10%,#0262ee 14%,#0057e5 20%,#0054e3 24%,#0055eb 56%,#005bf5 66%,#026afe 76%,#0062ef 86%,#0052d6 92%,#0040ab 94%,#003092 100%)'
@@ -219,8 +225,9 @@ const StyledWindow = styled(Window)`
   .app__content {
     flex: 1;
     position: relative;
-    margin-top: 25px;
-    height: calc(100% - 25px);
+    margin-top: ${({ header }) => (header.invisible ? 0 : 25)}px;
+    height: ${({ header }) =>
+      header.invisible ? '100%' : 'calc(100% - 25px)'};
   }
 `;
 

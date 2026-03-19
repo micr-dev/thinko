@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Syobon Action</title>
+  <style>
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      overscroll-behavior: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+    }
+
+    #viewport {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #frame {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 320px;
+      height: 200px;
+      border: 0;
+      background: #000;
+      transform-origin: top left;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="viewport">
+    <iframe id="frame" src="./raw.html" title="Syobon Action"></iframe>
+  </div>
+  <script>
+    const FALLBACK_WIDTH = 480;
+    const FALLBACK_HEIGHT = 420;
+    const CONTROL_KEYS = new Set([
+      'ArrowUp',
+      'ArrowDown',
+      'ArrowLeft',
+      'ArrowRight',
+      'Enter',
+      'Shift',
+      'ShiftLeft',
+      'ShiftRight',
+      ' ',
+      'Space',
+      'Spacebar',
+      'KeyZ',
+      'KeyX',
+      'KeyQ',
+      'KeyR',
+      'z',
+      'x',
+      'q',
+      'r',
+      'Z',
+      'X',
+      'Q',
+      'R',
+    ]);
+    const frame = document.getElementById('frame');
+    let contentWidth = FALLBACK_WIDTH;
+    let contentHeight = FALLBACK_HEIGHT;
+
+    function notifyParent(payload) {
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage(
+            Object.assign({ type: 'XP_GAME_LOADING', gameId: 'catmario' }, payload),
+            window.location.origin,
+          );
+        }
+      } catch (error) {}
+    }
+
+    function layoutFrame() {
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const offsetLeft = (viewportWidth - contentWidth) / 2;
+      const offsetTop = (viewportHeight - contentHeight) / 2;
+
+      frame.style.width = `${contentWidth}px`;
+      frame.style.height = `${contentHeight}px`;
+      frame.style.left = `${offsetLeft}px`;
+      frame.style.top = `${offsetTop}px`;
+      frame.style.transform = 'scale(1)';
+    }
+
+    function getGameCanvas() {
+      try {
+        return frame.contentDocument && frame.contentDocument.getElementById('canvas');
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function focusGame() {
+      try {
+        const doc = frame.contentDocument;
+        const canvas = getGameCanvas();
+        frame.focus();
+        if (frame.contentWindow) {
+          frame.contentWindow.focus();
+        }
+        if (canvas) {
+          canvas.tabIndex = 0;
+          canvas.focus({ preventScroll: true });
+        } else if (doc && doc.body) {
+          doc.body.tabIndex = -1;
+          doc.body.focus({ preventScroll: true });
+        }
+      } catch (error) {}
+    }
+
+    function createForwardedKeyboardEvent(type, event) {
+      const forwardedEvent = new KeyboardEvent(type, {
+        key: event.key,
+        code: event.code,
+        location: event.location,
+        repeat: event.repeat,
+        ctrlKey: event.ctrlKey,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+        metaKey: event.metaKey,
+        bubbles: true,
+        cancelable: true,
+      });
+
+      try {
+        Object.defineProperties(forwardedEvent, {
+          keyCode: { get: () => event.keyCode },
+          which: { get: () => event.which },
+          charCode: { get: () => event.charCode },
+        });
+      } catch (error) {}
+
+      return forwardedEvent;
+    }
+
+    function relayKeyboardEvent(event) {
+      if (!CONTROL_KEYS.has(event.key) && !CONTROL_KEYS.has(event.code)) return;
+
+      const childWindow = frame.contentWindow;
+      const childDocument = frame.contentDocument;
+      const target = getGameCanvas() || childDocument || childWindow;
+
+      if (!childWindow || !target) return;
+
+      focusGame();
+      target.dispatchEvent(createForwardedKeyboardEvent(event.type, event));
+      childWindow.dispatchEvent(createForwardedKeyboardEvent(event.type, event));
+      event.preventDefault();
+    }
+
+    function styleInnerDocument() {
+      const doc = frame.contentDocument;
+      if (!doc || doc.getElementById('xp-cat-mario-crop')) return;
+
+      const style = doc.createElement('style');
+      style.id = 'xp-cat-mario-crop';
+      style.textContent = `
+        html,
+        body {
+          width: var(--xp-content-width, 480px) !important;
+          height: var(--xp-content-height, 420px) !important;
+          margin: 0 !important;
+          overflow: hidden !important;
+          background: #000 !important;
+        }
+
+        body {
+          position: relative !important;
+        }
+
+        h1,
+        h2,
+        #status,
+        #progress,
+        #fullscreen-btn,
+        a,
+        body > .emscripten:not(.emscripten_border) {
+          display: none !important;
+        }
+
+        .emscripten_border {
+          position: absolute !important;
+          inset: 0 !important;
+          width: var(--xp-content-width, 480px) !important;
+          height: var(--xp-content-height, 420px) !important;
+          margin: 0 !important;
+          border: 0 !important;
+          overflow: hidden !important;
+        }
+
+        #canvas {
+          display: block !important;
+          width: var(--xp-content-width, 480px) !important;
+          height: var(--xp-content-height, 420px) !important;
+          margin: 0 !important;
+          outline: none !important;
+          background: #000 !important;
+          image-rendering: pixelated !important;
+          image-rendering: crisp-edges !important;
+        }
+      `;
+      doc.head.appendChild(style);
+      syncContentSize();
+    }
+
+    function syncContentSize() {
+      const doc = frame.contentDocument;
+      const canvas = getGameCanvas();
+
+      if (!doc || !canvas) return;
+
+      const nextWidth = canvas.width || FALLBACK_WIDTH;
+      const nextHeight = canvas.height || FALLBACK_HEIGHT;
+
+      contentWidth = nextWidth;
+      contentHeight = nextHeight;
+
+      doc.documentElement.style.setProperty(
+        '--xp-content-width',
+        `${nextWidth}px`,
+      );
+      doc.documentElement.style.setProperty(
+        '--xp-content-height',
+        `${nextHeight}px`,
+      );
+
+      layoutFrame();
+    }
+
+    window.addEventListener('message', event => {
+      if (event.origin !== window.location.origin) return;
+      if (!event.data || event.data.type !== 'XP_GAME_LOADING') return;
+      if (event.data.gameId !== 'catmario') return;
+
+      styleInnerDocument();
+      syncContentSize();
+      notifyParent(event.data);
+    });
+
+    frame.addEventListener('load', () => {
+      styleInnerDocument();
+      syncContentSize();
+      layoutFrame();
+      focusGame();
+      notifyParent({ progress: 12, label: 'Loading Syobon Action...' });
+    });
+
+    frame.setAttribute('tabindex', '-1');
+    window.addEventListener('keydown', relayKeyboardEvent, true);
+    window.addEventListener('keyup', relayKeyboardEvent, true);
+    window.addEventListener('keypress', relayKeyboardEvent, true);
+    window.addEventListener('resize', layoutFrame);
+    document.addEventListener('pointerdown', focusGame, true);
+    window.setInterval(syncContentSize, 250);
+    layoutFrame();
+  </script>
+</body>
+</html>

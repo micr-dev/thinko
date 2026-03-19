@@ -1,121 +1,134 @@
-import InternetExplorer from './InternetExplorer';
 import Minesweeper from './Minesweeper';
 import ErrorBox from './ErrorBox';
 import MyComputer from './MyComputer';
-import Notepad from './Notepad';
 import Winamp from './Winamp';
 import Paint from './Paint';
-import iePaper from 'assets/windowsIcons/ie-paper.png';
-import ie from 'assets/windowsIcons/ie.png';
+import DrawingsFolder from './drawings-folder';
+import VirtualPc, { games } from './virtual-pc';
+import IWBTG from './iwbtg';
+import NyanCat from './nyan-cat';
+import CommissionViewer from './commission-viewer';
+import defaultIconGridIndexes from './default-icon-grid-indexes.json';
 import mine from 'assets/minesweeper/mine-icon.png';
 import error from 'assets/windowsIcons/897(16x16).png';
 import computer from 'assets/windowsIcons/676(16x16).png';
 import computerLarge from 'assets/windowsIcons/676(32x32).png';
-import notepad from 'assets/windowsIcons/327(16x16).png';
-import notepadLarge from 'assets/windowsIcons/327(32x32).png';
 import winamp from 'assets/windowsIcons/winamp.png';
 import paintLarge from 'assets/windowsIcons/680(32x32).png';
 import paint from 'assets/windowsIcons/680(16x16).png';
+import picture from 'assets/windowsIcons/307(32x32).png';
+import recycleBinIcon from 'assets/windowsIcons/360(32x32).png';
 
-const gen = () => {
-  let id = -1;
-  return () => {
-    id += 1;
-    return id;
-  };
+const nyanCatIcon = '/custom/nyan-cat/nyancat.png';
+const iwbtgIcon = '/custom/games/iwbtg.png';
+const GAME_WINDOW_CHROME = {
+  width: 6,
+  height: 31,
 };
-const genId = gen();
-const genIndex = gen();
-export const defaultAppState = [
-  {
-    component: InternetExplorer,
+
+function toGameWindowSize(size = { width: 860, height: 620 }) {
+  return {
+    width: size.width + GAME_WINDOW_CHROME.width,
+    height: size.height + GAME_WINDOW_CHROME.height,
+  };
+}
+
+function hashCommissionId(value) {
+  return (
+    Array.from(value || '').reduce(
+      (hash, character) => (hash * 31 + character.charCodeAt(0)) % 1000000,
+      17,
+    ) + 1000
+  );
+}
+
+export function buildCommissionDesktopIcon(commission) {
+  const windowWidth = Math.min(
+    Math.max((commission.width || 560) + 80, 520),
+    980,
+  );
+  const windowHeight = Math.min(
+    Math.max((commission.height || 360) + 170, 420),
+    840,
+  );
+
+  return {
+    id: hashCommissionId(commission.id),
+    icon: commission.iconUrl || picture,
+    title: commission.artistName,
+    appKey: commission.id,
+    gridIndex: commission.gridIndex,
+    isFocus: false,
+    isCommission: true,
+    appDescriptor: {
+      header: {
+        icon: commission.iconUrl || picture,
+        title: commission.artistName,
+      },
+      component: CommissionViewer,
+      injectProps: {
+        commission,
+      },
+      defaultSize: {
+        width: windowWidth,
+        height: windowHeight,
+      },
+      defaultOffset: {
+        x: 220,
+        y: 70,
+      },
+      resizable: true,
+      minimized: false,
+      maximized: false,
+      multiInstance: true,
+    },
+  };
+}
+
+const desktopGameIcons = games.map((game, index) => ({
+  id: index + 6,
+  icon: game.icon,
+  title: game.shortName,
+  component: VirtualPc,
+  appKey: game.appKey,
+  gridIndex: defaultIconGridIndexes[index + 6],
+  isFocus: false,
+}));
+const firstExtraIconId = 6 + desktopGameIcons.length;
+
+const gameAppSettings = games.reduce((settings, game, index) => {
+  settings[game.appKey] = {
     header: {
-      title: 'Internet Explorer',
-      icon: iePaper,
+      icon: game.icon,
+      title: game.name,
     },
-    defaultSize: {
-      width: 700,
-      height: 500,
+    component: VirtualPc,
+    injectProps: {
+      gameId: game.id,
     },
-    defaultOffset: {
-      x: 130,
-      y: 20,
+    defaultSize: toGameWindowSize(game.defaultSize),
+    defaultOffset: game.defaultOffset || {
+      x: 160 + (index % 3) * 30,
+      y: 40 + (index % 3) * 24,
     },
     resizable: true,
     minimized: false,
-    maximized: window.innerWidth < 800,
-    id: genId(),
-    zIndex: genIndex(),
-  },
-  {
-    component: Minesweeper,
-    header: {
-      title: 'Minesweeper',
-      icon: mine,
-    },
-    defaultSize: {
-      width: 0,
-      height: 0,
-    },
-    defaultOffset: {
-      x: 180,
-      y: 170,
-    },
-    resizable: false,
-    minimized: false,
     maximized: false,
-    id: genId(),
-    zIndex: genIndex(),
-  },
-  {
-    component: Winamp,
-    header: {
-      title: 'Winamp',
-      icon: winamp,
-      invisible: true,
-    },
-    defaultSize: {
-      width: 0,
-      height: 0,
-    },
-    defaultOffset: {
-      x: 0,
-      y: 0,
-    },
-    resizable: false,
-    minimized: false,
-    maximized: false,
-    id: genId(),
-    zIndex: genIndex(),
-  },
-  {
-    component: MyComputer,
-    header: {
-      title: 'My Computer',
-      icon: computer,
-    },
-    defaultSize: {
-      width: 660,
-      height: 500,
-    },
-    defaultOffset: {
-      x: 250,
-      y: 40,
-    },
-    resizable: true,
-    minimized: false,
-    maximized: window.innerWidth < 800,
-    id: genId(),
-    zIndex: genIndex(),
-  },
-];
+    multiInstance: true,
+  };
+
+  return settings;
+}, {});
+
+export const defaultAppState = [];
 
 export const defaultIconState = [
   {
     id: 0,
-    icon: ie,
-    title: 'Internet Explorer',
-    component: InternetExplorer,
+    icon: recycleBinIcon,
+    title: 'Recycle Bin',
+    appKey: 'Recycle Bin',
+    gridIndex: defaultIconGridIndexes[0],
     isFocus: false,
   },
   {
@@ -123,6 +136,7 @@ export const defaultIconState = [
     icon: mine,
     title: 'Minesweeper',
     component: Minesweeper,
+    gridIndex: defaultIconGridIndexes[1],
     isFocus: false,
   },
   {
@@ -130,51 +144,47 @@ export const defaultIconState = [
     icon: computerLarge,
     title: 'My Computer',
     component: MyComputer,
+    gridIndex: defaultIconGridIndexes[2],
     isFocus: false,
   },
   {
     id: 3,
-    icon: notepadLarge,
-    title: 'Notepad',
-    component: Notepad,
+    icon: paintLarge,
+    title: 'Paint',
+    component: Paint,
+    gridIndex: defaultIconGridIndexes[3],
     isFocus: false,
   },
   {
     id: 4,
-    icon: winamp,
-    title: 'Winamp',
-    component: Winamp,
+    icon: picture,
+    title: 'My Pictures',
+    component: DrawingsFolder,
+    appKey: 'My Pictures',
+    gridIndex: defaultIconGridIndexes[4],
     isFocus: false,
   },
   {
     id: 5,
-    icon: paintLarge,
-    title: 'Paint',
-    component: Paint,
+    icon: winamp,
+    title: 'Winamp',
+    component: Winamp,
+    gridIndex: defaultIconGridIndexes[5],
+    isFocus: false,
+  },
+  ...desktopGameIcons,
+  {
+    id: firstExtraIconId,
+    icon: nyanCatIcon,
+    title: 'Nyan Cat',
+    component: NyanCat,
+    appKey: 'Nyan Cat',
+    gridIndex: defaultIconGridIndexes[firstExtraIconId],
     isFocus: false,
   },
 ];
 
 export const appSettings = {
-  'Internet Explorer': {
-    header: {
-      icon: iePaper,
-      title: 'InternetExplorer',
-    },
-    component: InternetExplorer,
-    defaultSize: {
-      width: 700,
-      height: 500,
-    },
-    defaultOffset: {
-      x: 140,
-      y: 30,
-    },
-    resizable: true,
-    minimized: false,
-    maximized: window.innerWidth < 800,
-    multiInstance: true,
-  },
   Minesweeper: {
     header: {
       icon: mine,
@@ -215,6 +225,29 @@ export const appSettings = {
     maximized: false,
     multiInstance: true,
   },
+  'Recycle Bin': {
+    header: {
+      icon: recycleBinIcon,
+      title: 'Recycle Bin',
+      buttons: ['minimize', 'close'],
+    },
+    component: ErrorBox,
+    injectProps: {
+      message: 'Recycle Bin is empty.',
+    },
+    defaultSize: {
+      width: 320,
+      height: 0,
+    },
+    defaultOffset: {
+      x: 220,
+      y: 120,
+    },
+    resizable: false,
+    minimized: false,
+    maximized: false,
+    multiInstance: true,
+  },
   'My Computer': {
     header: {
       icon: computer,
@@ -233,25 +266,6 @@ export const appSettings = {
     minimized: false,
     maximized: window.innerWidth < 800,
     multiInstance: false,
-  },
-  Notepad: {
-    header: {
-      icon: notepad,
-      title: 'Untitled - Notepad',
-    },
-    component: Notepad,
-    defaultSize: {
-      width: 660,
-      height: 500,
-    },
-    defaultOffset: {
-      x: 270,
-      y: 60,
-    },
-    resizable: true,
-    minimized: false,
-    maximized: window.innerWidth < 800,
-    multiInstance: true,
   },
   Winamp: {
     header: {
@@ -292,6 +306,64 @@ export const appSettings = {
     maximized: window.innerWidth < 800,
     multiInstance: true,
   },
+  'My Pictures': {
+    header: {
+      icon: picture,
+      title: 'My Pictures',
+    },
+    component: DrawingsFolder,
+    defaultSize: {
+      width: 780,
+      height: 560,
+    },
+    defaultOffset: {
+      x: 240,
+      y: 75,
+    },
+    resizable: true,
+    minimized: false,
+    maximized: false,
+    multiInstance: false,
+  },
+  ...gameAppSettings,
+  IWBTG: {
+    header: {
+      icon: iwbtgIcon,
+      title: 'I Wanna Be The Guy',
+    },
+    component: IWBTG,
+    defaultSize: {
+      width: 820,
+      height: 520,
+    },
+    defaultOffset: {
+      x: 170,
+      y: 55,
+    },
+    resizable: true,
+    minimized: false,
+    maximized: false,
+    multiInstance: true,
+  },
+  'Nyan Cat': {
+    header: {
+      icon: nyanCatIcon,
+      title: 'Nyan Cat',
+    },
+    component: NyanCat,
+    defaultSize: {
+      width: 400,
+      height: 320,
+    },
+    defaultOffset: {
+      x: 200,
+      y: 80,
+    },
+    resizable: false,
+    minimized: false,
+    maximized: false,
+    multiInstance: true,
+  },
 };
 
-export { InternetExplorer, Minesweeper, ErrorBox, MyComputer, Notepad, Winamp };
+export { Minesweeper, ErrorBox, MyComputer, Winamp, VirtualPc, IWBTG, NyanCat };

@@ -17,7 +17,6 @@ import wireless from 'assets/windowsIcons/234(16x16).png';
 import accessibility from 'assets/windowsIcons/238(16x16).png';
 import connection from 'assets/windowsIcons/309(16x16).png';
 import update from 'assets/windowsIcons/322(16x16).png';
-import notepad from 'assets/windowsIcons/327(16x16).png';
 import networkAssistance from 'assets/windowsIcons/357(16x16).png';
 import menu from 'assets/windowsIcons/358(16x16).png';
 import transfer from 'assets/windowsIcons/367(16x16).png';
@@ -43,7 +42,6 @@ import onlineHeart from 'assets/windowsIcons/890(16x16).png';
 import checker from 'assets/windowsIcons/891(16x16).png';
 import backgammon from 'assets/windowsIcons/892(16x16).png';
 import movieMaker from 'assets/windowsIcons/894(16x16).png';
-import ie from 'assets/windowsIcons/896(16x16).png';
 import messenger from 'assets/windowsIcons/msn.png';
 import spider from 'assets/windowsIcons/spider.png';
 import freecell from 'assets/windowsIcons/freecell.png';
@@ -252,11 +250,6 @@ export const AllPrograms = [
       },
       {
         type: 'item',
-        icon: notepad,
-        text: 'Notepad',
-      },
-      {
-        type: 'item',
         icon: painter,
         text: 'Paint',
       },
@@ -370,11 +363,6 @@ export const AllPrograms = [
         text: '(Empty)',
       },
     ],
-  },
-  {
-    type: 'item',
-    icon: ie,
-    text: 'Internet Explorer',
   },
   {
     type: 'item',

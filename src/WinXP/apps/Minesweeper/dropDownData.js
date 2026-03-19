@@ -78,4 +78,7 @@ const Help = [
     text: 'About Minesweeper',
   },
 ];
-export default { Game, Help };
+
+const dropDownData = { Game, Help };
+
+export default dropDownData;

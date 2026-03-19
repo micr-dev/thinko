@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 
 import SubMenu from 'components/SubMenu';
-import ie from 'assets/windowsIcons/ie.png';
 import mine from 'assets/minesweeper/mine-icon.png';
 import setAccess from 'assets/windowsIcons/227(32x32).png';
 import outlook from 'assets/windowsIcons/887(32x32).png';
@@ -25,7 +24,6 @@ import user from 'assets/windowsIcons/user.png';
 import shut from 'assets/windowsIcons/310(32x32).png';
 import allProgramsIcon from 'assets/windowsIcons/all-programs.ico';
 import winamp from 'assets/windowsIcons/winamp.png';
-import notepad from 'assets/windowsIcons/327(32x32).png';
 import empty from 'assets/empty.png';
 
 import { AllPrograms, ConnectTo, MyRecentDocuments } from './FooterMenuData';
@@ -46,9 +44,6 @@ function FooterMenu({ className, onClick }) {
       <section className="menu" onMouseOver={onMouseOver}>
         <hr className="orange-hr" />
         <div className="menu__left">
-          <Item onClick={onClick} text="Internet" icon={ie}>
-            <div className="menu__item__subtext">Internet Explorer</div>
-          </Item>
           <Item onClick={onClick} text="E-mail" icon={outlook}>
             <div className="menu__item__subtext">Outlook Express</div>
           </Item>
@@ -57,9 +52,9 @@ function FooterMenu({ className, onClick }) {
             onClick={onClick}
             items={[
               { icon: mine, text: 'Minesweeper' },
-              { icon: notepad, text: 'Notepad' },
               { icon: winamp, text: 'Winamp' },
               { icon: paint, text: 'Paint' },
+              { icon: '/custom/nyan-cat/nyancat.png', text: 'Nyan Cat' },
               { icon: mediaPlayer, text: 'Windows Media Player' },
               { icon: messenger, text: 'Windows Messenger' },
             ]}

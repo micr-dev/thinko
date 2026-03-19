@@ -1,0 +1,11 @@
+downloads
+opensrc
+build
+node_modules
+.git
+.gitignore
+syobon-fixed.png
+syobon-look.png
+syobon-real.png
+tmp-cat-clean.png
+tmp-monkey-clean.png
