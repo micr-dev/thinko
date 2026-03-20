@@ -279,10 +279,8 @@ const StyledIcon = styled(Icon)`
   }
   &__img {
     display: block;
-    max-width: 48px;
-    max-height: 48px;
-    width: auto;
-    height: auto;
+    width: 48px;
+    height: 48px;
     object-fit: contain;
     opacity: ${({ isFocus, displayFocus }) =>
       isFocus && displayFocus ? 0.5 : 1};
