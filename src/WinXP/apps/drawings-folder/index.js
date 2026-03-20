@@ -190,8 +190,8 @@ const Toolbar = styled.div`
   }
 
   .toolbar__button img {
-    width: 16px;
-    height: 16px;
+    width: 22px;
+    height: 22px;
   }
 
   .toolbar__button--disabled {
@@ -225,26 +225,31 @@ const AddressBar = styled.div`
     align-items: center;
     gap: 6px;
     min-width: 0;
-    padding: 4px 6px;
+    padding: 0 6px;
     border: 1px solid #7f9db9;
     background: #fff;
+    position: relative;
   }
 
   .address__field span {
+    position: absolute;
+    left: 22px;
+    right: 20px;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
   }
 
   .address__field img:first-child {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
 
   .address__field img:last-child {
-    width: 9px;
-    height: 5px;
-    margin-left: auto;
+    width: 15px;
+    height: 15px;
+    position: absolute;
+    right: 1px;
   }
 
   .address__go {
@@ -252,11 +257,14 @@ const AddressBar = styled.div`
     align-items: center;
     gap: 4px;
     color: #234167;
+    height: 100%;
+    padding: 0 10px 0 5px;
   }
 
   .address__go img {
-    width: 16px;
-    height: 16px;
+    height: 95%;
+    width: auto;
+    border: 1px solid rgba(255, 255, 255, 0.2);
   }
 `;
 

@@ -53,38 +53,29 @@ function CommissionViewer({ commission }) {
           <span>Go</span>
         </div>
       </AddressBar>
-      <Content>
-        <Sidebar>
-          <SidebarTitle>Picture Details</SidebarTitle>
-          <SidebarText>{commission.date || 'date not provided'}</SidebarText>
-          {commission.description && (
-            <>
-              <SidebarTitle>Description</SidebarTitle>
-              <SidebarText>{commission.description}</SidebarText>
-            </>
-          )}
-        </Sidebar>
-        <MainPanel>
-          <Heading>
-            <img src={pictureIcon} alt="" />
-            <div>
-              <Title>{artistLabel}</Title>
-              <Subtitle>commission details</Subtitle>
+      <MainPanel>
+        <Heading>
+          <img src={pictureIcon} alt="" />
+          <div>
+            <Title>{artistLabel}</Title>
+            <Subtitle>commission details</Subtitle>
+          </div>
+        </Heading>
+        <Body>
+          <PreviewArea>
+            <div className="preview__viewport">
+              <img
+                src={commission.imageUrl || pictureIcon}
+                alt={artistLabel}
+                draggable={false}
+              />
             </div>
-          </Heading>
-          <Body>
-            <PreviewArea>
-              <div className="preview__viewport">
-                <img
-                  src={commission.imageUrl || pictureIcon}
-                  alt={artistLabel}
-                  draggable={false}
-                />
-              </div>
-            </PreviewArea>
-            <DetailsPanel>
-              <DetailRow>
-                <span className="detail__label">Artist</span>
+          </PreviewArea>
+          <DetailsPanel>
+            <DetailMeta>
+              <span>{commission.date || 'date not provided'}</span>
+              <span>
+                {' - by '}
                 {commission.artistLink ? (
                   <a
                     href={commission.artistLink}
@@ -94,23 +85,18 @@ function CommissionViewer({ commission }) {
                     {artistLabel}
                   </a>
                 ) : (
-                  <span>{artistLabel}</span>
+                  artistLabel
                 )}
-              </DetailRow>
-              <DetailRow>
-                <span className="detail__label">Date</span>
-                <span>{commission.date || 'not provided'}</span>
-              </DetailRow>
-              {commission.description && (
-                <DetailBlock>
-                  <span className="detail__label">Description</span>
-                  <p>{commission.description}</p>
-                </DetailBlock>
-              )}
-            </DetailsPanel>
-          </Body>
-        </MainPanel>
-      </Content>
+              </span>
+            </DetailMeta>
+            {commission.description && (
+              <DetailBlock>
+                <p>{commission.description}</p>
+              </DetailBlock>
+            )}
+          </DetailsPanel>
+        </Body>
+      </MainPanel>
     </Shell>
   );
 }
@@ -144,8 +130,8 @@ const Toolbar = styled.div`
   }
 
   .toolbar__button img {
-    width: 16px;
-    height: 16px;
+    width: 22px;
+    height: 22px;
   }
 
   .toolbar__button--disabled {
@@ -179,26 +165,31 @@ const AddressBar = styled.div`
     align-items: center;
     gap: 6px;
     min-width: 0;
-    padding: 4px 6px;
+    padding: 0 6px;
     border: 1px solid #7f9db9;
     background: #fff;
+    position: relative;
   }
 
   .address__field span {
+    position: absolute;
+    left: 22px;
+    right: 20px;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
   }
 
   .address__field img:first-child {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
 
   .address__field img:last-child {
-    width: 9px;
-    height: 5px;
-    margin-left: auto;
+    width: 15px;
+    height: 15px;
+    position: absolute;
+    right: 1px;
   }
 
   .address__go {
@@ -206,45 +197,20 @@ const AddressBar = styled.div`
     align-items: center;
     gap: 4px;
     color: #234167;
+    height: 100%;
+    padding: 0 10px 0 5px;
   }
 
   .address__go img {
-    width: 16px;
-    height: 16px;
+    height: 95%;
+    width: auto;
+    border: 1px solid rgba(255, 255, 255, 0.2);
   }
 `;
 
-const Content = styled.div`
-  display: flex;
-  flex: 1;
-  min-height: 0;
-`;
-
-const Sidebar = styled.aside`
-  width: 200px;
-  flex-shrink: 0;
-  padding: 16px 14px;
-  border-right: 1px solid rgba(0, 0, 0, 0.14);
-  background: linear-gradient(180deg, #7ea5e7 0%, #c7dbff 8%, #d8e5fb 100%);
-`;
-
-const SidebarTitle = styled.div`
-  font-size: 13px;
-  font-weight: 700;
-  color: #0f3b87;
-  margin-bottom: 6px;
-`;
-
-const SidebarText = styled.div`
-  font-size: 11px;
-  line-height: 1.45;
-  color: #1d385d;
-  margin-bottom: 14px;
-  word-break: break-word;
-`;
-
 const MainPanel = styled.div`
-  flex: 1;
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   padding: 18px;
@@ -280,18 +246,15 @@ const Subtitle = styled.div`
 const Body = styled.div`
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 220px);
-  gap: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   overflow: hidden;
-
-  @media (max-width: 760px) {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
-  }
 `;
 
 const PreviewArea = styled.div`
+  flex: 1;
+  max-height: 100%;
   min-height: 0;
   min-width: 0;
   border: 1px solid #7f9db9;
@@ -305,6 +268,8 @@ const PreviewArea = styled.div`
   .preview__viewport {
     width: 100%;
     height: 100%;
+    max-width: 100%;
+    max-height: 100%;
     min-width: 0;
     min-height: 0;
     display: flex;
@@ -315,7 +280,7 @@ const PreviewArea = styled.div`
   img {
     max-width: 100%;
     max-height: 100%;
-    width: 100%;
+    width: auto;
     height: auto;
     object-fit: contain;
     object-position: center;
@@ -324,54 +289,33 @@ const PreviewArea = styled.div`
 `;
 
 const DetailsPanel = styled.aside`
-  min-height: 0;
-  min-width: 0;
-  padding: 14px;
-  border: 1px solid #c6d5e8;
-  background: #f8fbff;
+  flex-shrink: 0;
+  padding: 8px 10px 0;
   color: #1d385d;
   font-size: 12px;
-  overflow: auto;
-
-  @media (max-width: 760px) {
-    max-height: 180px;
-  }
 `;
 
-const DetailRow = styled.div`
-  display: grid;
-  gap: 4px;
-  margin-bottom: 14px;
-
-  .detail__label {
-    font-size: 11px;
-    font-weight: 700;
-    color: #476685;
-    text-transform: uppercase;
-  }
+const DetailMeta = styled.div`
+  font-size: 12px;
+  color: #35506d;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
 
   a {
-    color: #124db5;
+    color: inherit;
     text-decoration: underline;
-    word-break: break-word;
   }
 `;
 
 const DetailBlock = styled.div`
-  display: grid;
-  gap: 4px;
-
-  .detail__label {
-    font-size: 11px;
-    font-weight: 700;
-    color: #476685;
-    text-transform: uppercase;
-  }
+  margin-top: 6px;
 
   p {
     margin: 0;
-    line-height: 1.45;
+    line-height: 1.5;
     white-space: pre-wrap;
+    color: #35506d;
   }
 `;
 

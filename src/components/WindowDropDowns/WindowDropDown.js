@@ -79,7 +79,7 @@ function RowSymbol({ type }) {
     case 'folder':
       return <img className="drop-down__icon" src={folder} alt="" />;
     case 'check':
-      return <img src={check} alt="" />;
+      return <img className="drop-down__icon" src={check} alt="" />;
     case 'circle':
       return (
         <div
