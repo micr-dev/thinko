@@ -2,8 +2,14 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 
 import { defaultIconState } from 'WinXP/apps';
+import commissionPlacement from 'WinXP/apps/commission-placement.json';
 
-const ROWS_PER_COLUMN = 11;
+const ROWS_PER_COLUMN = Number(commissionPlacement.rowsPerColumn) || 11;
+const RANDOM_AREA = commissionPlacement.randomArea || {};
+const RANDOM_START_ROW = Number(RANDOM_AREA.startRow) || 1;
+const RANDOM_END_ROW = Number(RANDOM_AREA.endRow) || 8;
+const RANDOM_START_COLUMN = Number(RANDOM_AREA.startColumn) || 4;
+const RANDOM_END_COLUMN = Number(RANDOM_AREA.endColumn) || 16;
 
 const DEFAULT_COMMISSION_FORM = {
   id: '',
@@ -11,8 +17,8 @@ const DEFAULT_COMMISSION_FORM = {
   artistLink: '',
   date: '',
   description: '',
-  row: '1',
-  column: '1',
+  row: '',
+  column: '',
   imageDataUrl: '',
   imagePreviewUrl: '',
   imageName: '',
@@ -51,9 +57,19 @@ function DrawingsAdminPage() {
   }, []);
 
   const slotMeta = useMemo(() => {
+    if (!commissionForm.row && !commissionForm.column) {
+      return {
+        gridIndex: null,
+        random: true,
+        message: `random free slot in rows ${RANDOM_START_ROW}-${RANDOM_END_ROW}, columns ${RANDOM_START_COLUMN}-${RANDOM_END_COLUMN}`,
+      };
+    }
+
     const row = Number(commissionForm.row);
     const column = Number(commissionForm.column);
     if (
+      !commissionForm.row ||
+      !commissionForm.column ||
       !Number.isInteger(row) ||
       !Number.isInteger(column) ||
       row < 1 ||
@@ -61,7 +77,8 @@ function DrawingsAdminPage() {
     ) {
       return {
         gridIndex: null,
-        message: 'enter a valid row and column',
+        random: false,
+        message: 'enter both row and column, or leave both blank for random',
       };
     }
 
@@ -70,6 +87,7 @@ function DrawingsAdminPage() {
     if (reservedLabel) {
       return {
         gridIndex,
+        random: false,
         message: `occupied by ${reservedLabel}`,
       };
     }
@@ -82,6 +100,7 @@ function DrawingsAdminPage() {
 
     return {
       gridIndex,
+      random: false,
       message: commissionOccupant
         ? `occupied by ${commissionOccupant.artistName}`
         : 'slot is available',
@@ -247,11 +266,14 @@ function DrawingsAdminPage() {
     setActionId('commission-save');
 
     try {
-      if (!slotMeta.message || slotMeta.gridIndex === null) {
+      if (
+        !slotMeta.message ||
+        (!slotMeta.random && slotMeta.gridIndex === null)
+      ) {
         throw new Error('A valid desktop position is required');
       }
 
-      if (slotMeta.message !== 'slot is available') {
+      if (!slotMeta.random && slotMeta.message !== 'slot is available') {
         throw new Error(slotMeta.message);
       }
 
@@ -267,7 +289,7 @@ function DrawingsAdminPage() {
           artistLink: commissionForm.artistLink,
           date: commissionForm.date,
           description: commissionForm.description,
-          gridIndex: slotMeta.gridIndex,
+          gridIndex: slotMeta.random ? undefined : slotMeta.gridIndex,
           imageDataUrl: commissionForm.imageDataUrl || undefined,
         }),
       });
@@ -423,8 +445,8 @@ function DrawingsAdminPage() {
           <SectionHeader>
             <SectionTitle>commissions</SectionTitle>
             <SectionText>
-              upload a piece, set its desktop slot, and it will replace the old
-              commission placeholders immediately.
+              upload a piece and either set its desktop slot or leave it blank
+              for a random spot in the commission area.
             </SectionText>
           </SectionHeader>
           <CommissionLayout>
@@ -478,6 +500,7 @@ function DrawingsAdminPage() {
                       type="number"
                       min="1"
                       value={commissionForm.row}
+                      placeholder={`${RANDOM_START_ROW}-${RANDOM_END_ROW}`}
                       onChange={event =>
                         setCommissionForm(current => ({
                           ...current,
@@ -492,6 +515,7 @@ function DrawingsAdminPage() {
                       type="number"
                       min="1"
                       value={commissionForm.column}
+                      placeholder={`${RANDOM_START_COLUMN}-${RANDOM_END_COLUMN}`}
                       onChange={event =>
                         setCommissionForm(current => ({
                           ...current,
@@ -532,7 +556,9 @@ function DrawingsAdminPage() {
                 </label>
               </FormGrid>
               <SlotHint>
-                {slotMeta.gridIndex === null
+                {slotMeta.random
+                  ? slotMeta.message
+                  : slotMeta.gridIndex === null
                   ? slotMeta.message
                   : `slot ${slotMeta.gridIndex} - ${slotMeta.message}`}
               </SlotHint>

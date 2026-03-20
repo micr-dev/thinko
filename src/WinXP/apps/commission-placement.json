@@ -1,0 +1,9 @@
+{
+  "rowsPerColumn": 11,
+  "randomArea": {
+    "startRow": 1,
+    "endRow": 8,
+    "startColumn": 4,
+    "endColumn": 16
+  }
+}

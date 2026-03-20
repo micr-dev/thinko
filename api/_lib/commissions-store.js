@@ -3,6 +3,7 @@ const { del, get, put } = require('@vercel/blob');
 
 const { COMMISSIONS_MANIFEST_PATH } = require('./config');
 const defaultIconGridIndexes = require('../../src/WinXP/apps/default-icon-grid-indexes.json');
+const commissionPlacement = require('../../src/WinXP/apps/commission-placement.json');
 
 const JPEG_START_OF_FRAME_MARKERS = new Set([
   0xc0,
@@ -35,6 +36,12 @@ const JPEG_STANDALONE_MARKERS = new Set([
 const RESERVED_GRID_INDEXES = new Set(
   Object.values(defaultIconGridIndexes).map(value => Number(value)),
 );
+const ROWS_PER_COLUMN = Number(commissionPlacement.rowsPerColumn) || 11;
+const RANDOM_AREA = commissionPlacement.randomArea || {};
+const RANDOM_START_ROW = Number(RANDOM_AREA.startRow) || 1;
+const RANDOM_END_ROW = Number(RANDOM_AREA.endRow) || 8;
+const RANDOM_START_COLUMN = Number(RANDOM_AREA.startColumn) || 4;
+const RANDOM_END_COLUMN = Number(RANDOM_AREA.endColumn) || 16;
 
 function requireBlobConfig() {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
@@ -75,6 +82,10 @@ function normalizeArtistLink(value) {
 }
 
 function parseGridIndex(value) {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 0) {
     const error = new Error('A valid desktop position is required');
@@ -225,6 +236,50 @@ function validateGridIndex(gridIndex, entries, currentId = '') {
   }
 }
 
+function shuffle(values) {
+  const nextValues = [...values];
+  for (let index = nextValues.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [nextValues[index], nextValues[swapIndex]] = [
+      nextValues[swapIndex],
+      nextValues[index],
+    ];
+  }
+  return nextValues;
+}
+
+function buildRandomAreaGridIndexes() {
+  const indexes = [];
+
+  for (let column = RANDOM_START_COLUMN; column <= RANDOM_END_COLUMN; column += 1) {
+    for (let row = RANDOM_START_ROW; row <= RANDOM_END_ROW; row += 1) {
+      indexes.push((column - 1) * ROWS_PER_COLUMN + (row - 1));
+    }
+  }
+
+  return indexes;
+}
+
+function chooseRandomGridIndex(entries, currentId = '') {
+  const occupiedIndexes = new Set(
+    entries
+      .filter(entry => entry.id !== currentId)
+      .map(entry => Number(entry.gridIndex)),
+  );
+  const availableIndexes = shuffle(buildRandomAreaGridIndexes()).filter(
+    gridIndex =>
+      !RESERVED_GRID_INDEXES.has(gridIndex) && !occupiedIndexes.has(gridIndex),
+  );
+
+  if (!availableIndexes.length) {
+    const error = new Error('No free commission slots are available');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return availableIndexes[0];
+}
+
 function buildPublicCommission(record) {
   return {
     id: record.id,
@@ -259,7 +314,7 @@ async function upsertCommission(input) {
   const artistLink = normalizeArtistLink(input.artistLink);
   const date = sanitizeLine(input.date, 60);
   const description = sanitizeDescription(input.description, 280);
-  const gridIndex = parseGridIndex(input.gridIndex);
+  const requestedGridIndex = parseGridIndex(input.gridIndex);
 
   if (!artistName) {
     const error = new Error('Artist name is required');
@@ -277,6 +332,10 @@ async function upsertCommission(input) {
   const existing = input.id
     ? entries.find(entry => entry.id === input.id) || null
     : null;
+  const gridIndex =
+    requestedGridIndex === null
+      ? chooseRandomGridIndex(entries, existing ? existing.id : '')
+      : requestedGridIndex;
 
   validateGridIndex(gridIndex, entries, existing ? existing.id : '');
 
