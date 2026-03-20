@@ -153,6 +153,7 @@ function Icon({
   id,
   appKey,
   component,
+  appDescriptor,
   measure,
   debugMode,
   gridIndex,
@@ -169,7 +170,7 @@ function Icon({
   }
   function _onDoubleClick() {
     if (debugMode) return;
-    onDoubleClick({ id, title, component, appKey });
+    onDoubleClick({ id, title, component, appKey, appDescriptor });
   }
   function onMouseUp() {
     if (!debugMode) return;
@@ -277,8 +278,12 @@ const StyledIcon = styled(Icon)`
       isFocus && displayFocus ? 'drop-shadow(0 0 blue)' : ''};
   }
   &__img {
-    width: 48px;
-    height: 48px;
+    display: block;
+    max-width: 48px;
+    max-height: 48px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
     opacity: ${({ isFocus, displayFocus }) =>
       isFocus && displayFocus ? 0.5 : 1};
   }

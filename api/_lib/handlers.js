@@ -13,6 +13,7 @@ const { ADMIN_PATH, getBaseUrl, getGitHubConfig } = require('./config');
 const {
   buildPublicCommission,
   deleteCommission,
+  ensureCommissionIcon,
   getCommission,
   getPublicCommissions,
   upsertCommission,
@@ -488,6 +489,49 @@ async function handlePublicCommissionImage(req, res) {
   }
 }
 
+async function handlePublicCommissionIcon(req, res) {
+  if (!assertMethod(req, res, ['GET'])) return;
+
+  noStore(res);
+
+  try {
+    const { id } = req.query || {};
+    if (!id) {
+      sendError(res, 400, 'Commission id is required');
+      return;
+    }
+
+    const commission = await getCommission(id);
+    if (!commission) {
+      sendError(res, 404, 'Commission not found');
+      return;
+    }
+
+    await ensureCommissionIcon(commission);
+
+    const asset = await require('@vercel/blob').get(commission.iconPath, {
+      access: 'private',
+    });
+
+    if (!asset) {
+      sendError(res, 404, 'Commission icon not found');
+      return;
+    }
+
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    const buffer = Buffer.from(await new Response(asset.stream).arrayBuffer());
+    res.end(buffer);
+  } catch (error) {
+    sendError(
+      res,
+      error.statusCode || 500,
+      error.message || 'Failed to load commission icon',
+    );
+  }
+}
+
 async function handleApproveSubmission(req, res) {
   if (!assertMethod(req, res, ['POST'])) return;
 
@@ -695,6 +739,7 @@ module.exports = {
   handleGitHubStart,
   handleListPublicCommissions,
   handlePublicDrawingImage,
+  handlePublicCommissionIcon,
   handlePublicCommissionImage,
   handleListPublicDrawings,
   handleRejectSubmission,

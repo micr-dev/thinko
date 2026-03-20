@@ -13,6 +13,7 @@ const {
   handleGitHubStart,
   handleListPublicCommissions,
   handleListPublicDrawings,
+  handlePublicCommissionIcon,
   handlePublicDrawingImage,
   handlePublicCommissionImage,
   handleRejectSubmission,
@@ -28,6 +29,7 @@ app.post('/api/drawings/submissions', handleCreateSubmission);
 app.get('/api/drawings/public', handleListPublicDrawings);
 app.get('/api/drawings/image', handlePublicDrawingImage);
 app.get('/api/commissions/public', handleListPublicCommissions);
+app.get('/api/commissions/icon', handlePublicCommissionIcon);
 app.get('/api/commissions/image', handlePublicCommissionImage);
 app.get('/api/admin/session', handleAdminSession);
 app.post('/api/admin/logout', handleAdminLogout);

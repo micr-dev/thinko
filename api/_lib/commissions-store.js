@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { del, get, put } = require('@vercel/blob');
+const sharp = require('sharp');
 
 const { COMMISSIONS_MANIFEST_PATH } = require('./config');
 const defaultIconGridIndexes = require('../../src/WinXP/apps/default-icon-grid-indexes.json');
@@ -43,6 +44,7 @@ const RANDOM_END_ROW = Number(RANDOM_AREA.endRow) || 8;
 const RANDOM_START_COLUMN = Number(RANDOM_AREA.startColumn) || 4;
 const RANDOM_END_COLUMN = Number(RANDOM_AREA.endColumn) || 16;
 const CATBOX_FILE_HOST = 'files.catbox.moe';
+const COMMISSION_ICON_SIZE = 32;
 
 function requireBlobConfig() {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
@@ -389,7 +391,7 @@ function buildPublicCommission(record) {
     description: record.description,
     gridIndex: record.gridIndex,
     imageUrl: publicImageUrl,
-    iconUrl: publicImageUrl,
+    iconUrl: `/api/commissions/icon?id=${encodeURIComponent(record.id)}`,
     mimeType: record.mimeType,
     width: record.width,
     height: record.height,
@@ -399,14 +401,111 @@ function buildPublicCommission(record) {
 }
 
 async function getPublicCommissions() {
-  return sortCommissions(await getCommissionsManifest()).map(
-    buildPublicCommission,
-  );
+  const entries = await getCommissionsManifest();
+  const nextEntries = await ensureCommissionIcons(entries);
+  return sortCommissions(nextEntries).map(buildPublicCommission);
 }
 
 async function getCommission(id) {
   const entries = await getCommissionsManifest();
   return entries.find(entry => entry.id === id) || null;
+}
+
+function getCommissionIconPath(id) {
+  return `commissions/icons/${id}.png`;
+}
+
+function getCommissionAssetPath(id, mimeType) {
+  if (mimeType === 'image/png') {
+    return `commissions/assets/${id}.png`;
+  }
+
+  if (mimeType === 'image/webp') {
+    return `commissions/assets/${id}.webp`;
+  }
+
+  return `commissions/assets/${id}.jpg`;
+}
+
+async function createCommissionIconBuffer(buffer) {
+  return sharp(buffer)
+    .resize(COMMISSION_ICON_SIZE, COMMISSION_ICON_SIZE, {
+      fit: 'contain',
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+      withoutEnlargement: false,
+    })
+    .png()
+    .toBuffer();
+}
+
+async function writeCommissionIconAsset(id, buffer) {
+  const iconPath = getCommissionIconPath(id);
+  const iconBuffer = await createCommissionIconBuffer(buffer);
+
+  await put(iconPath, iconBuffer, {
+    access: 'private',
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    contentType: 'image/png',
+    cacheControlMaxAge: 0,
+  });
+
+  return iconPath;
+}
+
+async function loadCommissionSourceBuffer(record) {
+  if (record.imageUrl) {
+    const response = await fetch(record.imageUrl, { cache: 'no-store' });
+
+    if (!response.ok) {
+      const error = new Error('Failed to fetch commission image from Catbox');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    return Buffer.from(await response.arrayBuffer());
+  }
+
+  if (!record.assetPath) {
+    const error = new Error('Commission image not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const asset = await get(record.assetPath, { access: 'private' });
+  if (!asset) {
+    const error = new Error('Commission image not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return Buffer.from(await new Response(asset.stream).arrayBuffer());
+}
+
+async function ensureCommissionIcon(record) {
+  if (record.iconPath) {
+    return record;
+  }
+
+  const sourceBuffer = await loadCommissionSourceBuffer(record);
+  record.iconPath = await writeCommissionIconAsset(record.id, sourceBuffer);
+  return record;
+}
+
+async function ensureCommissionIcons(entries) {
+  let changed = false;
+
+  for (const entry of entries) {
+    if (entry.iconPath) continue;
+    await ensureCommissionIcon(entry);
+    changed = true;
+  }
+
+  if (changed) {
+    await saveCommissionsManifest(sortCommissions(entries));
+  }
+
+  return entries;
 }
 
 async function loadCommissionImage(input, existing) {
@@ -502,6 +601,7 @@ async function upsertCommission(input) {
       gridIndex,
       imageUrl: imageInfo.imageUrl || '',
       assetPath: '',
+      iconPath: '',
       mimeType: imageInfo.mimeType,
       width,
       height,
@@ -510,8 +610,7 @@ async function upsertCommission(input) {
     };
 
     if (imageInfo.source === 'blob') {
-      const fileExtension = imageInfo.mimeType === 'image/png' ? 'png' : 'jpg';
-      const assetPath = `commissions/assets/${id}.${fileExtension}`;
+      const assetPath = getCommissionAssetPath(id, imageInfo.mimeType);
 
       await put(assetPath, imageInfo.buffer, {
         access: 'private',
@@ -523,6 +622,8 @@ async function upsertCommission(input) {
 
       record.assetPath = assetPath;
     }
+
+    record.iconPath = await writeCommissionIconAsset(id, imageInfo.buffer);
 
     await saveCommissionsManifest(sortCommissions([record, ...entries]));
     return record;
@@ -543,8 +644,7 @@ async function upsertCommission(input) {
     let assetPath = '';
 
     if (imageInfo.source === 'blob') {
-      const fileExtension = imageInfo.mimeType === 'image/png' ? 'png' : 'jpg';
-      assetPath = `commissions/assets/${existing.id}.${fileExtension}`;
+      assetPath = getCommissionAssetPath(existing.id, imageInfo.mimeType);
 
       await put(assetPath, imageInfo.buffer, {
         access: 'private',
@@ -561,6 +661,10 @@ async function upsertCommission(input) {
 
     existing.imageUrl = imageInfo.imageUrl || '';
     existing.assetPath = assetPath;
+    existing.iconPath = await writeCommissionIconAsset(
+      existing.id,
+      imageInfo.buffer,
+    );
     existing.mimeType = imageInfo.mimeType;
     existing.width = width;
     existing.height = height;
@@ -582,6 +686,7 @@ async function deleteCommission(id) {
   await Promise.all([
     saveCommissionsManifest(entries.filter(entry => entry.id !== id)),
     del(record.assetPath).catch(() => undefined),
+    del(record.iconPath).catch(() => undefined),
   ]);
 
   return record;
@@ -592,6 +697,7 @@ module.exports = {
   buildPublicCommission,
   deleteCommission,
   getCommission,
+  ensureCommissionIcon,
   getCommissionsManifest,
   getPublicCommissions,
   upsertCommission,
