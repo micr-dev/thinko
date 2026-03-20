@@ -55,11 +55,6 @@ function CommissionViewer({ commission }) {
       </AddressBar>
       <Content>
         <Sidebar>
-          <SidebarTitle>Picture Tasks</SidebarTitle>
-          <SidebarText>
-            This commission opens as a full-quality image while the desktop uses
-            a smaller icon thumbnail.
-          </SidebarText>
           <SidebarTitle>Picture Details</SidebarTitle>
           <SidebarText>{commission.date || 'date not provided'}</SidebarText>
           {commission.description && (
@@ -79,11 +74,13 @@ function CommissionViewer({ commission }) {
           </Heading>
           <Body>
             <PreviewArea>
-              <img
-                src={commission.imageUrl || pictureIcon}
-                alt={artistLabel}
-                draggable={false}
-              />
+              <div className="preview__viewport">
+                <img
+                  src={commission.imageUrl || pictureIcon}
+                  alt={artistLabel}
+                  draggable={false}
+                />
+              </div>
             </PreviewArea>
             <DetailsPanel>
               <DetailRow>
@@ -284,13 +281,19 @@ const Body = styled.div`
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 220px);
   gap: 18px;
   overflow: hidden;
+
+  @media (max-width: 760px) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
 `;
 
 const PreviewArea = styled.div`
   min-height: 0;
+  min-width: 0;
   border: 1px solid #7f9db9;
   background: #fff;
   display: flex;
@@ -299,9 +302,21 @@ const PreviewArea = styled.div`
   padding: 16px;
   overflow: hidden;
 
-  img {
+  .preview__viewport {
     width: 100%;
     height: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  img {
+    max-width: 100%;
+    max-height: 100%;
+    width: 100%;
+    height: auto;
     object-fit: contain;
     object-position: center;
     display: block;
@@ -310,12 +325,17 @@ const PreviewArea = styled.div`
 
 const DetailsPanel = styled.aside`
   min-height: 0;
+  min-width: 0;
   padding: 14px;
   border: 1px solid #c6d5e8;
   background: #f8fbff;
   color: #1d385d;
   font-size: 12px;
   overflow: auto;
+
+  @media (max-width: 760px) {
+    max-height: 180px;
+  }
 `;
 
 const DetailRow = styled.div`

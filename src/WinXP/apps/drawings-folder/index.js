@@ -253,6 +253,11 @@ const AddressBar = styled.div`
     gap: 4px;
     color: #234167;
   }
+
+  .address__go img {
+    width: 16px;
+    height: 16px;
+  }
 `;
 
 const Content = styled.div`
