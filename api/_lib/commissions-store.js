@@ -42,6 +42,7 @@ const RANDOM_START_ROW = Number(RANDOM_AREA.startRow) || 1;
 const RANDOM_END_ROW = Number(RANDOM_AREA.endRow) || 8;
 const RANDOM_START_COLUMN = Number(RANDOM_AREA.startColumn) || 4;
 const RANDOM_END_COLUMN = Number(RANDOM_AREA.endColumn) || 16;
+const CATBOX_FILE_HOST = 'files.catbox.moe';
 
 function requireBlobConfig() {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
@@ -118,6 +119,65 @@ function parseImageDataUrl(imageDataUrl) {
   };
 }
 
+function normalizeRemoteImageUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) {
+    return '';
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(value.trim());
+  } catch (error) {
+    const invalidUrlError = new Error('Commission image URL is invalid');
+    invalidUrlError.statusCode = 400;
+    throw invalidUrlError;
+  }
+
+  if (
+    parsedUrl.protocol !== 'https:' ||
+    parsedUrl.hostname.toLowerCase() !== CATBOX_FILE_HOST
+  ) {
+    const invalidHostError = new Error(
+      'Commission image must be a files.catbox.moe URL',
+    );
+    invalidHostError.statusCode = 400;
+    throw invalidHostError;
+  }
+
+  return parsedUrl.toString();
+}
+
+function normalizeRemoteMimeType(contentType, imageUrl) {
+  const mimeType = String(contentType || '')
+    .split(';')[0]
+    .trim()
+    .toLowerCase();
+
+  if (
+    mimeType === 'image/png' ||
+    mimeType === 'image/jpeg' ||
+    mimeType === 'image/webp'
+  ) {
+    return mimeType;
+  }
+
+  if (/\.png(?:$|\?)/i.test(imageUrl)) {
+    return 'image/png';
+  }
+
+  if (/\.(jpe?g|jfif)(?:$|\?)/i.test(imageUrl)) {
+    return 'image/jpeg';
+  }
+
+  if (/\.webp(?:$|\?)/i.test(imageUrl)) {
+    return 'image/webp';
+  }
+
+  const error = new Error('Commission image must be a PNG, JPG, or WEBP');
+  error.statusCode = 400;
+  throw error;
+}
+
 function parseImageDimensions(buffer, mimeType) {
   if (mimeType === 'image/png') {
     const pngSignature = '89504e470d0a1a0a';
@@ -131,6 +191,43 @@ function parseImageDimensions(buffer, mimeType) {
       width: buffer.readUInt32BE(16),
       height: buffer.readUInt32BE(20),
     };
+  }
+
+  if (mimeType === 'image/webp') {
+    const riffHeader = buffer.subarray(0, 4).toString('ascii');
+    const webpHeader = buffer.subarray(8, 12).toString('ascii');
+    if (riffHeader !== 'RIFF' || webpHeader !== 'WEBP') {
+      const error = new Error('Invalid WEBP image');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const chunkHeader = buffer.subarray(12, 16).toString('ascii');
+    if (chunkHeader === 'VP8X' && buffer.length >= 30) {
+      return {
+        width: 1 + buffer.readUIntLE(24, 3),
+        height: 1 + buffer.readUIntLE(27, 3),
+      };
+    }
+
+    if (chunkHeader === 'VP8 ' && buffer.length >= 30) {
+      return {
+        width: buffer.readUInt16LE(26) & 0x3fff,
+        height: buffer.readUInt16LE(28) & 0x3fff,
+      };
+    }
+
+    if (chunkHeader === 'VP8L' && buffer.length >= 25) {
+      const bits = buffer.readUInt32LE(21);
+      return {
+        width: (bits & 0x3fff) + 1,
+        height: ((bits >> 14) & 0x3fff) + 1,
+      };
+    }
+
+    const error = new Error('Invalid WEBP image');
+    error.statusCode = 400;
+    throw error;
   }
 
   if (mimeType !== 'image/jpeg') {
@@ -281,6 +378,9 @@ function chooseRandomGridIndex(entries, currentId = '') {
 }
 
 function buildPublicCommission(record) {
+  const publicImageUrl =
+    record.imageUrl ||
+    `/api/commissions/image?id=${encodeURIComponent(record.id)}`;
   return {
     id: record.id,
     artistName: record.artistName,
@@ -288,8 +388,8 @@ function buildPublicCommission(record) {
     date: record.date,
     description: record.description,
     gridIndex: record.gridIndex,
-    imageUrl: `/api/commissions/image?id=${encodeURIComponent(record.id)}`,
-    iconUrl: `/api/commissions/image?id=${encodeURIComponent(record.id)}`,
+    imageUrl: publicImageUrl,
+    iconUrl: publicImageUrl,
     mimeType: record.mimeType,
     width: record.width,
     height: record.height,
@@ -307,6 +407,49 @@ async function getPublicCommissions() {
 async function getCommission(id) {
   const entries = await getCommissionsManifest();
   return entries.find(entry => entry.id === id) || null;
+}
+
+async function loadCommissionImage(input, existing) {
+  if (input.imageUrl) {
+    const imageUrl = normalizeRemoteImageUrl(input.imageUrl);
+    const response = await fetch(imageUrl);
+
+    if (!response.ok) {
+      const error = new Error('Failed to fetch commission image from Catbox');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const mimeType = normalizeRemoteMimeType(
+      response.headers.get('content-type'),
+      imageUrl,
+    );
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    return {
+      imageUrl,
+      mimeType,
+      buffer,
+      source: 'catbox',
+    };
+  }
+
+  if (input.imageDataUrl) {
+    const imageInfo = parseImageDataUrl(input.imageDataUrl);
+    return {
+      ...imageInfo,
+      imageUrl: '',
+      source: 'blob',
+    };
+  }
+
+  if (!existing) {
+    const error = new Error('Commission image is required');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return null;
 }
 
 async function upsertCommission(input) {
@@ -339,33 +482,16 @@ async function upsertCommission(input) {
 
   validateGridIndex(gridIndex, entries, existing ? existing.id : '');
 
-  let imageInfo = null;
-  if (input.imageDataUrl) {
-    imageInfo = parseImageDataUrl(input.imageDataUrl);
-  } else if (!existing) {
-    const error = new Error('Commission image is required');
-    error.statusCode = 400;
-    throw error;
-  }
+  const imageInfo = await loadCommissionImage(input, existing);
 
   const updatedAt = createIsoStamp();
 
   if (!existing) {
     const id = createCommissionId();
-    const fileExtension = imageInfo.mimeType === 'image/png' ? 'png' : 'jpg';
-    const assetPath = `commissions/assets/${id}.${fileExtension}`;
     const { width, height } = parseImageDimensions(
       imageInfo.buffer,
       imageInfo.mimeType,
     );
-
-    await put(assetPath, imageInfo.buffer, {
-      access: 'private',
-      addRandomSuffix: false,
-      allowOverwrite: true,
-      contentType: imageInfo.mimeType,
-      cacheControlMaxAge: 0,
-    });
 
     const record = {
       id,
@@ -374,13 +500,29 @@ async function upsertCommission(input) {
       date,
       description,
       gridIndex,
-      assetPath,
+      imageUrl: imageInfo.imageUrl || '',
+      assetPath: '',
       mimeType: imageInfo.mimeType,
       width,
       height,
       createdAt: updatedAt,
       updatedAt,
     };
+
+    if (imageInfo.source === 'blob') {
+      const fileExtension = imageInfo.mimeType === 'image/png' ? 'png' : 'jpg';
+      const assetPath = `commissions/assets/${id}.${fileExtension}`;
+
+      await put(assetPath, imageInfo.buffer, {
+        access: 'private',
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        contentType: imageInfo.mimeType,
+        cacheControlMaxAge: 0,
+      });
+
+      record.assetPath = assetPath;
+    }
 
     await saveCommissionsManifest(sortCommissions([record, ...entries]));
     return record;
@@ -398,21 +540,26 @@ async function upsertCommission(input) {
       imageInfo.buffer,
       imageInfo.mimeType,
     );
-    const fileExtension = imageInfo.mimeType === 'image/png' ? 'png' : 'jpg';
-    const assetPath = `commissions/assets/${existing.id}.${fileExtension}`;
+    let assetPath = '';
 
-    await put(assetPath, imageInfo.buffer, {
-      access: 'private',
-      addRandomSuffix: false,
-      allowOverwrite: true,
-      contentType: imageInfo.mimeType,
-      cacheControlMaxAge: 0,
-    });
+    if (imageInfo.source === 'blob') {
+      const fileExtension = imageInfo.mimeType === 'image/png' ? 'png' : 'jpg';
+      assetPath = `commissions/assets/${existing.id}.${fileExtension}`;
+
+      await put(assetPath, imageInfo.buffer, {
+        access: 'private',
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        contentType: imageInfo.mimeType,
+        cacheControlMaxAge: 0,
+      });
+    }
 
     if (existing.assetPath && existing.assetPath !== assetPath) {
       await del(existing.assetPath).catch(() => undefined);
     }
 
+    existing.imageUrl = imageInfo.imageUrl || '';
     existing.assetPath = assetPath;
     existing.mimeType = imageInfo.mimeType;
     existing.width = width;

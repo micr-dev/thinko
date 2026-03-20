@@ -3,6 +3,7 @@ import styled from 'styled-components';
 
 import { defaultIconState } from 'WinXP/apps';
 import commissionPlacement from 'WinXP/apps/commission-placement.json';
+import commissionDrafts from './commission-drafts.json';
 
 const ROWS_PER_COLUMN = Number(commissionPlacement.rowsPerColumn) || 11;
 const RANDOM_AREA = commissionPlacement.randomArea || {};
@@ -19,9 +20,9 @@ const DEFAULT_COMMISSION_FORM = {
   description: '',
   row: '',
   column: '',
-  imageDataUrl: '',
   imagePreviewUrl: '',
   imageName: '',
+  sourceImageUrl: '',
 };
 
 const RESERVED_SLOTS = new Map(
@@ -34,6 +35,10 @@ function DrawingsAdminPage() {
   const [submissions, setSubmissions] = useState([]);
   const [commissions, setCommissions] = useState([]);
   const [commissionForm, setCommissionForm] = useState(DEFAULT_COMMISSION_FORM);
+  const [commissionImageFile, setCommissionImageFile] = useState(null);
+  const [isUploadingCommissionImage, setIsUploadingCommissionImage] = useState(
+    false,
+  );
   const [error, setError] = useState('');
   const [actionId, setActionId] = useState('');
   const [reasonById, setReasonById] = useState({});
@@ -222,6 +227,7 @@ function DrawingsAdminPage() {
   }
 
   function resetCommissionForm() {
+    setCommissionImageFile(null);
     setCommissionForm(DEFAULT_COMMISSION_FORM);
   }
 
@@ -237,27 +243,40 @@ function DrawingsAdminPage() {
       description: commission.description || '',
       row: String(row),
       column: String(column),
-      imageDataUrl: '',
       imagePreviewUrl: commission.imageUrl || '',
       imageName: '',
+      sourceImageUrl: '',
     });
+    setCommissionImageFile(null);
   }
 
   async function onCommissionFileChange(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
 
-    if (!/^image\/(png|jpeg)$/.test(file.type)) {
-      setError('Commission image must be a PNG or JPG');
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
+      setError('Commission image must be a PNG, JPG, or WEBP');
       return;
     }
 
-    const imageDataUrl = await readFileAsDataUrl(file);
+    setError('');
+    setCommissionImageFile(file);
     setCommissionForm(current => ({
       ...current,
-      imageDataUrl,
-      imagePreviewUrl: imageDataUrl,
+      imagePreviewUrl: URL.createObjectURL(file),
       imageName: file.name,
+      sourceImageUrl: '',
+    }));
+  }
+
+  function selectCommissionDraft(draft) {
+    setError('');
+    setCommissionImageFile(null);
+    setCommissionForm(current => ({
+      ...current,
+      imagePreviewUrl: draft.previewUrl,
+      imageName: draft.fileName,
+      sourceImageUrl: draft.previewUrl,
     }));
   }
 
@@ -277,6 +296,28 @@ function DrawingsAdminPage() {
         throw new Error(slotMeta.message);
       }
 
+      let uploadedImageUrl;
+      if (commissionImageFile) {
+        setIsUploadingCommissionImage(true);
+        try {
+          uploadedImageUrl = await uploadCommissionImageToCatbox(
+            commissionImageFile,
+          );
+        } finally {
+          setIsUploadingCommissionImage(false);
+        }
+      } else if (commissionForm.sourceImageUrl) {
+        setIsUploadingCommissionImage(true);
+        try {
+          uploadedImageUrl = await uploadCommissionSourceUrlToCatbox(
+            commissionForm.sourceImageUrl,
+            commissionForm.imageName || 'commission-image',
+          );
+        } finally {
+          setIsUploadingCommissionImage(false);
+        }
+      }
+
       const response = await fetch('/api/admin/commissions', {
         method: 'POST',
         credentials: 'same-origin',
@@ -290,13 +331,16 @@ function DrawingsAdminPage() {
           date: commissionForm.date,
           description: commissionForm.description,
           gridIndex: slotMeta.random ? undefined : slotMeta.gridIndex,
-          imageDataUrl: commissionForm.imageDataUrl || undefined,
+          imageUrl: uploadedImageUrl,
         }),
       });
 
       if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || 'Commission save failed');
+        const responseText = await response.text();
+        const payload = safeParseJson(responseText);
+        throw new Error(
+          payload.error || responseText || 'Commission save failed',
+        );
       }
 
       await loadDashboard();
@@ -304,6 +348,7 @@ function DrawingsAdminPage() {
     } catch (requestError) {
       setError(requestError.message);
     } finally {
+      setIsUploadingCommissionImage(false);
       setActionId('');
     }
   }
@@ -543,15 +588,22 @@ function DrawingsAdminPage() {
                   <span>image</span>
                   <input
                     type="file"
-                    accept="image/png,image/jpeg"
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={isUploadingCommissionImage}
                     onChange={onCommissionFileChange}
                   />
                   <FieldHint>
-                    {commissionForm.imageName
-                      ? `selected: ${commissionForm.imageName}`
+                    {isUploadingCommissionImage
+                      ? 'uploading original image to catbox...'
+                      : commissionForm.imageName
+                      ? `${
+                          commissionForm.sourceImageUrl ? 'draft' : 'selected'
+                        }: ${
+                          commissionForm.imageName
+                        } - uploads to catbox on save`
                       : commissionForm.id
                       ? 'leave empty to keep the current image'
-                      : 'png or jpg'}
+                      : 'png, jpg, or webp'}
                   </FieldHint>
                 </label>
               </FormGrid>
@@ -571,7 +623,9 @@ function DrawingsAdminPage() {
               <CardActions>
                 <ActionButton
                   type="button"
-                  disabled={actionId === 'commission-save'}
+                  disabled={
+                    actionId === 'commission-save' || isUploadingCommissionImage
+                  }
                   onClick={saveCommission}
                 >
                   {commissionForm.id ? 'save changes' : 'publish commission'}
@@ -580,6 +634,28 @@ function DrawingsAdminPage() {
                   clear
                 </NeutralButton>
               </CardActions>
+              <DraftSection>
+                <DraftHeader>draft library</DraftHeader>
+                <DraftText>
+                  imported from :6767/comms. pick one, then fill name, link,
+                  date, and description if you want.
+                </DraftText>
+                <DraftGrid>
+                  {commissionDrafts.map(draft => (
+                    <DraftCard key={draft.id}>
+                      <DraftThumb src={draft.previewUrl} alt={draft.label} />
+                      <DraftLabel>{draft.label}</DraftLabel>
+                      <DraftButton
+                        type="button"
+                        disabled={isUploadingCommissionImage}
+                        onClick={() => selectCommissionDraft(draft)}
+                      >
+                        use draft
+                      </DraftButton>
+                    </DraftCard>
+                  ))}
+                </DraftGrid>
+              </DraftSection>
             </CommissionForm>
             <CommissionList>
               {commissions.map(commission => (
@@ -640,13 +716,58 @@ function formatDate(value) {
   }
 }
 
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error('Failed to read image file'));
-    reader.readAsDataURL(file);
+function safeParseJson(value) {
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return {};
+  }
+}
+
+async function uploadCommissionImageToCatbox(file) {
+  const formData = new FormData();
+  formData.append('reqtype', 'fileupload');
+  formData.append('fileToUpload', file, file.name);
+
+  const response = await fetch('https://catbox.moe/user/api.php', {
+    method: 'POST',
+    body: formData,
   });
+
+  const responseText = (await response.text()).trim();
+  if (!response.ok) {
+    throw new Error(responseText || 'Catbox upload failed');
+  }
+
+  if (!/^https:\/\/files\.catbox\.moe\/\S+$/i.test(responseText)) {
+    throw new Error(responseText || 'Catbox upload failed');
+  }
+
+  return responseText;
+}
+
+async function uploadCommissionSourceUrlToCatbox(sourceUrl, fileName) {
+  const sourceResponse = await fetch(sourceUrl, {
+    cache: 'no-store',
+  });
+
+  if (!sourceResponse.ok) {
+    throw new Error('Failed to load the selected draft image');
+  }
+
+  const blob = await sourceResponse.blob();
+  const file = new File([blob], fileName, {
+    type: blob.type || inferMimeTypeFromFileName(fileName),
+  });
+
+  return uploadCommissionImageToCatbox(file);
+}
+
+function inferMimeTypeFromFileName(fileName) {
+  if (/\.png$/i.test(fileName)) return 'image/png';
+  if (/\.(jpe?g|jfif)$/i.test(fileName)) return 'image/jpeg';
+  if (/\.webp$/i.test(fileName)) return 'image/webp';
+  return 'application/octet-stream';
 }
 
 const Screen = styled.div`
@@ -923,6 +1044,59 @@ const CommissionThumb = styled.img`
 
 const CommissionInfo = styled.div`
   min-width: 0;
+`;
+
+const DraftSection = styled.div`
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #d3deed;
+`;
+
+const DraftHeader = styled.div`
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  text-transform: lowercase;
+`;
+
+const DraftText = styled.div`
+  font-size: 12px;
+  color: #4f6481;
+  margin-bottom: 10px;
+`;
+
+const DraftGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+`;
+
+const DraftCard = styled.div`
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #c6d5e8;
+  background: #fff;
+`;
+
+const DraftThumb = styled.img`
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  background: #f8fbff;
+  border: 1px solid #d8e2f0;
+`;
+
+const DraftLabel = styled.div`
+  font-size: 11px;
+  color: #35506d;
+  line-height: 1.35;
+  word-break: break-word;
+`;
+
+const DraftButton = styled(NeutralButton)`
+  min-width: 0;
+  width: 100%;
 `;
 
 export default DrawingsAdminPage;

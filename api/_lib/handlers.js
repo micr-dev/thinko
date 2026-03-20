@@ -59,11 +59,7 @@ function assertSubmissionRateLimit(req, res) {
   );
 
   if (activeEntries.length >= SUBMISSION_RATE_LIMIT_MAX) {
-    sendError(
-      res,
-      429,
-      'Too many submissions from this IP. Try again later.',
-    );
+    sendError(res, 429, 'Too many submissions from this IP. Try again later.');
     return false;
   }
 
@@ -133,6 +129,8 @@ async function handleListPublicDrawings(req, res) {
 
 async function handleListPublicCommissions(req, res) {
   if (!assertMethod(req, res, ['GET'])) return;
+
+  noStore(res);
 
   try {
     sendJson(res, 200, {
