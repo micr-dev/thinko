@@ -53,50 +53,72 @@ function CommissionViewer({ commission }) {
           <span>Go</span>
         </div>
       </AddressBar>
-      <MainPanel>
-        <Heading>
-          <img src={pictureIcon} alt="" />
-          <div>
-            <Title>{artistLabel}</Title>
-            <Subtitle>commission details</Subtitle>
-          </div>
-        </Heading>
-        <Body>
-          <PreviewArea>
-            <div className="preview__viewport">
-              <img
-                src={commission.imageUrl || pictureIcon}
-                alt={artistLabel}
-                draggable={false}
-              />
-            </div>
-          </PreviewArea>
-          <DetailsPanel>
-            <DetailMeta>
-              <span>{commission.date || 'date not provided'}</span>
-              <span>
-                {' - by '}
-                {commission.artistLink ? (
-                  <a
-                    href={commission.artistLink}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {artistLabel}
-                  </a>
-                ) : (
-                  artistLabel
-                )}
-              </span>
-            </DetailMeta>
-            {commission.description && (
-              <DetailBlock>
-                <p>{commission.description}</p>
-              </DetailBlock>
+      <Content>
+        <Sidebar>
+          <SidebarTitle>Picture Details</SidebarTitle>
+          <SidebarText>{commission.date || 'date not provided'}</SidebarText>
+          <SidebarText>
+            by{' '}
+            {commission.artistLink ? (
+              <a href={commission.artistLink} target="_blank" rel="noreferrer">
+                {artistLabel}
+              </a>
+            ) : (
+              artistLabel
             )}
-          </DetailsPanel>
-        </Body>
-      </MainPanel>
+          </SidebarText>
+          {commission.description && (
+            <>
+              <SidebarTitle>Description</SidebarTitle>
+              <SidebarText>{commission.description}</SidebarText>
+            </>
+          )}
+        </Sidebar>
+        <MainPanel>
+          <Heading>
+            <img src={pictureIcon} alt="" />
+            <div>
+              <Title>{artistLabel}</Title>
+              <Subtitle>commission details</Subtitle>
+            </div>
+          </Heading>
+          <Body>
+            <PreviewArea>
+              <div className="preview__viewport">
+                <img
+                  src={commission.imageUrl || pictureIcon}
+                  alt={artistLabel}
+                  draggable={false}
+                />
+              </div>
+            </PreviewArea>
+            <DetailsPanel>
+              <DetailMeta>
+                <span>{commission.date || 'date not provided'}</span>
+                <span>
+                  {' - by '}
+                  {commission.artistLink ? (
+                    <a
+                      href={commission.artistLink}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {artistLabel}
+                    </a>
+                  ) : (
+                    artistLabel
+                  )}
+                </span>
+              </DetailMeta>
+              {commission.description && (
+                <DetailBlock>
+                  <p>{commission.description}</p>
+                </DetailBlock>
+              )}
+            </DetailsPanel>
+          </Body>
+        </MainPanel>
+      </Content>
     </Shell>
   );
 }
@@ -208,9 +230,43 @@ const AddressBar = styled.div`
   }
 `;
 
+const Content = styled.div`
+  display: flex;
+  flex: 1;
+  min-height: 0;
+`;
+
+const Sidebar = styled.aside`
+  width: 200px;
+  flex-shrink: 0;
+  padding: 16px 14px;
+  border-right: 1px solid rgba(0, 0, 0, 0.14);
+  background: linear-gradient(180deg, #7ea5e7 0%, #c7dbff 8%, #d8e5fb 100%);
+  overflow: auto;
+`;
+
+const SidebarTitle = styled.div`
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f3b87;
+  margin-bottom: 6px;
+`;
+
+const SidebarText = styled.div`
+  font-size: 11px;
+  line-height: 1.45;
+  color: #1d385d;
+  margin-bottom: 14px;
+  word-break: break-word;
+
+  a {
+    color: inherit;
+    text-decoration: underline;
+  }
+`;
+
 const MainPanel = styled.div`
-  width: 100%;
-  height: 100%;
+  flex: 1;
   min-width: 0;
   min-height: 0;
   padding: 18px;
@@ -268,8 +324,6 @@ const PreviewArea = styled.div`
   .preview__viewport {
     width: 100%;
     height: 100%;
-    max-width: 100%;
-    max-height: 100%;
     min-width: 0;
     min-height: 0;
     display: flex;
@@ -293,6 +347,7 @@ const DetailsPanel = styled.aside`
   padding: 8px 10px 0;
   color: #1d385d;
   font-size: 12px;
+  overflow: auto;
 `;
 
 const DetailMeta = styled.div`

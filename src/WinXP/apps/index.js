@@ -43,14 +43,26 @@ function hashCommissionId(value) {
 }
 
 export function buildCommissionDesktopIcon(commission) {
-  const windowWidth = Math.min(
-    Math.max((commission.width || 560) + 80, 520),
-    980,
+  const sourceWidth = Math.max(Number(commission.width) || 560, 1);
+  const sourceHeight = Math.max(Number(commission.height) || 360, 1);
+  const maxPreviewWidth = 760;
+  const maxPreviewHeight = 560;
+  const minPreviewWidth = 280;
+  const minPreviewHeight = 220;
+  const previewScale = Math.min(
+    maxPreviewWidth / sourceWidth,
+    maxPreviewHeight / sourceHeight,
   );
-  const windowHeight = Math.min(
-    Math.max((commission.height || 360) + 170, 420),
-    840,
+  const previewWidth = Math.max(
+    minPreviewWidth,
+    Math.min(maxPreviewWidth, Math.round(sourceWidth * previewScale)),
   );
+  const previewHeight = Math.max(
+    minPreviewHeight,
+    Math.min(maxPreviewHeight, Math.round(sourceHeight * previewScale)),
+  );
+  const windowWidth = Math.min(Math.max(previewWidth + 260, 620), 1080);
+  const windowHeight = Math.min(Math.max(previewHeight + 190, 500), 940);
 
   return {
     id: hashCommissionId(commission.id),
