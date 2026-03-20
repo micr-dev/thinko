@@ -92,30 +92,6 @@ function CommissionViewer({ commission }) {
                 />
               </div>
             </PreviewArea>
-            <DetailsPanel>
-              <DetailMeta>
-                <span>{commission.date || 'date not provided'}</span>
-                <span>
-                  {' - by '}
-                  {commission.artistLink ? (
-                    <a
-                      href={commission.artistLink}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {artistLabel}
-                    </a>
-                  ) : (
-                    artistLabel
-                  )}
-                </span>
-              </DetailMeta>
-              {commission.description && (
-                <DetailBlock>
-                  <p>{commission.description}</p>
-                </DetailBlock>
-              )}
-            </DetailsPanel>
           </Body>
         </MainPanel>
       </Content>
@@ -303,8 +279,6 @@ const Body = styled.div`
   flex: 1;
   min-height: 0;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
   overflow: hidden;
 `;
 
@@ -339,38 +313,6 @@ const PreviewArea = styled.div`
     object-fit: contain;
     object-position: center;
     display: block;
-  }
-`;
-
-const DetailsPanel = styled.aside`
-  flex-shrink: 0;
-  padding: 8px 10px 0;
-  color: #1d385d;
-  font-size: 12px;
-  overflow: auto;
-`;
-
-const DetailMeta = styled.div`
-  font-size: 12px;
-  color: #35506d;
-  white-space: normal;
-  word-wrap: break-word;
-  overflow-wrap: anywhere;
-
-  a {
-    color: inherit;
-    text-decoration: underline;
-  }
-`;
-
-const DetailBlock = styled.div`
-  margin-top: 6px;
-
-  p {
-    margin: 0;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    color: #35506d;
   }
 `;
 
