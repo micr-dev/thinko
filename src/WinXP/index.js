@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import styled, { keyframes } from 'styled-components';
 import useMouse from 'react-use/lib/useMouse';
+import pictureIcon from 'assets/windowsIcons/307(32x32).png';
 
 import {
   ADD_APP,
@@ -25,6 +26,7 @@ import {
   CANCEL_POWER_OFF,
 } from './constants/actions';
 import { FOCUSING, POWER_STATE } from './constants';
+import { XP_WALLPAPER, ROTATING_WALLPAPERS } from './wallpaper-registry';
 import {
   buildCommissionDesktopIcon,
   defaultIconState,
@@ -40,7 +42,60 @@ import { DashedBox } from 'components';
 const ICON_COLUMN_WIDTH = 96;
 const ICON_COLUMN_GAP = 1;
 const ICON_GRID_LEFT = 4;
+const ICON_GRID_RIGHT = 20;
+const ICON_ROW_HEIGHT = 83;
+const ICON_ROW_GAP = 8;
+const ICON_GRID_TOP_WEB = 8;
+const ICON_GRID_TOP_TAURI = 36;
+const FOOTER_HEIGHT = 30;
+const ICON_GRID_BOTTOM = 36;
 const ROWS_PER_COLUMN = 11;
+const WALLPAPER_ROTATION_MIN_MS = 180000;
+const WALLPAPER_ROTATION_MAX_MS = 300000;
+const WALLPAPER_FADE_MS = 650;
+const DESKTOP_CONTEXT_MENU_WIDTH = 180;
+const DESKTOP_CONTEXT_MENU_HEIGHT = 58;
+
+function getRandomRotationDelay() {
+  return (
+    WALLPAPER_ROTATION_MIN_MS +
+    Math.floor(
+      Math.random() *
+        (WALLPAPER_ROTATION_MAX_MS - WALLPAPER_ROTATION_MIN_MS + 1),
+    )
+  );
+}
+
+function createWallpaperQueue(currentId) {
+  const queue = [...ROTATING_WALLPAPERS];
+
+  for (let index = queue.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [queue[index], queue[swapIndex]] = [queue[swapIndex], queue[index]];
+  }
+
+  if (queue.length > 1 && queue[0].id === currentId) {
+    [queue[0], queue[queue.length - 1]] = [queue[queue.length - 1], queue[0]];
+  }
+
+  return queue;
+}
+
+function clampDesktopContextMenuPosition(clientX, clientY) {
+  return {
+    x: Math.max(
+      4,
+      Math.min(clientX, window.innerWidth - DESKTOP_CONTEXT_MENU_WIDTH - 8),
+    ),
+    y: Math.max(
+      4,
+      Math.min(
+        clientY,
+        window.innerHeight - FOOTER_HEIGHT - DESKTOP_CONTEXT_MENU_HEIGHT - 8,
+      ),
+    ),
+  };
+}
 
 function normalizeIcons(icons) {
   const usedGridIndexes = new Set(
@@ -120,6 +175,101 @@ function buildLayoutExport(icons, rowsPerColumn) {
 function mergeCommissionIcons(icons, commissionIcons) {
   const staticIcons = icons.filter(icon => !icon.isCommission);
   return normalizeIcons([...staticIcons, ...commissionIcons]);
+}
+
+function getResponsiveDesktopMetrics(width, height) {
+  const isTauri =
+    typeof window !== 'undefined' &&
+    (window.__TAURI__ || window.__TAURI_INTERNALS__);
+  const gridTop = isTauri ? ICON_GRID_TOP_TAURI : ICON_GRID_TOP_WEB;
+  const usableWidth = Math.max(ICON_COLUMN_WIDTH, width - ICON_GRID_LEFT);
+  const usableHeight = Math.max(
+    ICON_ROW_HEIGHT,
+    height - FOOTER_HEIGHT - gridTop,
+  );
+  const safeWidth = Math.max(ICON_COLUMN_WIDTH, usableWidth - ICON_GRID_RIGHT);
+  const safeHeight = Math.max(ICON_ROW_HEIGHT, usableHeight - ICON_GRID_BOTTOM);
+
+  return {
+    columns: Math.max(
+      1,
+      Math.floor(
+        (safeWidth + ICON_COLUMN_GAP) / (ICON_COLUMN_WIDTH + ICON_COLUMN_GAP),
+      ),
+    ),
+    rows: Math.max(
+      1,
+      Math.floor(
+        (safeHeight + ICON_ROW_GAP) / (ICON_ROW_HEIGHT + ICON_ROW_GAP),
+      ),
+    ),
+  };
+}
+
+function getGridPosition(gridIndex, rowsPerColumn) {
+  return {
+    row: gridIndex % rowsPerColumn,
+    column: Math.floor(gridIndex / rowsPerColumn),
+  };
+}
+
+function findNearestFreeRow(preferredRow, rows, occupiedRows) {
+  for (let row = preferredRow; row < rows; row += 1) {
+    if (!occupiedRows.has(row)) {
+      return row;
+    }
+  }
+
+  for (let row = preferredRow - 1; row >= 0; row -= 1) {
+    if (!occupiedRows.has(row)) {
+      return row;
+    }
+  }
+
+  return Math.max(0, rows - 1);
+}
+
+function createResponsiveIconLayout(icons, rows) {
+  const normalizedIcons = normalizeIcons(icons);
+  const iconsByColumn = normalizedIcons.reduce((map, icon) => {
+    const { column } = getGridPosition(icon.gridIndex, ROWS_PER_COLUMN);
+    const columnIcons = map.get(column) || [];
+    columnIcons.push(icon);
+    map.set(column, columnIcons);
+    return map;
+  }, new Map());
+  const responsiveIcons = [];
+
+  [...iconsByColumn.entries()]
+    .sort((left, right) => left[0] - right[0])
+    .forEach(([column, columnIcons]) => {
+      const occupiedRows = new Set();
+
+      columnIcons
+        .sort((left, right) => left.gridIndex - right.gridIndex)
+        .forEach(icon => {
+          const { row } = getGridPosition(icon.gridIndex, ROWS_PER_COLUMN);
+          const projectedRow =
+            ROWS_PER_COLUMN > 1 && rows > 1
+              ? Math.round((row * (rows - 1)) / (ROWS_PER_COLUMN - 1))
+              : 0;
+          const responsiveRow = findNearestFreeRow(
+            projectedRow,
+            rows,
+            occupiedRows,
+          );
+
+          occupiedRows.add(responsiveRow);
+          responsiveIcons.push({
+            ...icon,
+            gridIndex: column * rows + responsiveRow,
+          });
+        });
+    });
+
+  return responsiveIcons.sort(
+    (left, right) => left.gridIndex - right.gridIndex || left.id - right.id,
+  );
 }
 
 const initState = {
@@ -281,10 +431,40 @@ function WinXP({ enableLayoutDebug = false }) {
   const [commissionIcons, setCommissionIcons] = useState([]);
   const [copyStatus, setCopyStatus] = useState('');
   const [desktopWidth, setDesktopWidth] = useState(window.innerWidth);
+  const [desktopHeight, setDesktopHeight] = useState(window.innerHeight);
+  const [currentWallpaper, setCurrentWallpaper] = useState(XP_WALLPAPER);
+  const [transitionWallpaper, setTransitionWallpaper] = useState(null);
+  const [isWallpaperFadingIn, setIsWallpaperFadingIn] = useState(false);
+  const [isTransitionWallpaperReady, setIsTransitionWallpaperReady] = useState(
+    false,
+  );
+  const [desktopContextMenu, setDesktopContextMenu] = useState(null);
   const ref = useRef(null);
+  const wallpaperRotationTimeoutRef = useRef(null);
+  const wallpaperTransitionTimeoutRef = useRef(null);
+  const wallpaperFadeFrameRef = useRef(null);
+  const wallpaperPreloadTokenRef = useRef(0);
+  const scheduleNextWallpaperChangeRef = useRef(() => {});
+  const advanceWallpaperRef = useRef(() => {});
+  const currentWallpaperIdRef = useRef(XP_WALLPAPER.id);
+  const transitionWallpaperIdRef = useRef(null);
+  const wallpaperQueueRef = useRef(createWallpaperQueue(XP_WALLPAPER.id));
   const mouse = useMouse(ref);
   const focusedAppId = getFocusedAppId();
-  const sortedIcons = useMemo(() => normalizeIcons(state.icons), [state.icons]);
+  const responsiveMetrics = useMemo(
+    () => getResponsiveDesktopMetrics(desktopWidth, desktopHeight),
+    [desktopHeight, desktopWidth],
+  );
+  const renderedIcons = useMemo(() => {
+    if (enableLayoutDebug) {
+      return normalizeIcons(state.icons);
+    }
+
+    return createResponsiveIconLayout(state.icons, responsiveMetrics.rows);
+  }, [enableLayoutDebug, responsiveMetrics.rows, state.icons]);
+  const sortedIcons = useMemo(() => normalizeIcons(renderedIcons), [
+    renderedIcons,
+  ]);
   const selectedIcons = sortedIcons.filter(icon => icon.isFocus);
   const activeDebugIcon = selectedIcons.length === 1 ? selectedIcons[0] : null;
   const maxDesktopGridIndex = useMemo(() => {
@@ -352,8 +532,23 @@ function WinXP({ enableLayoutDebug = false }) {
     };
   }, []);
   useEffect(() => {
+    function onKeyDown(event) {
+      if (event.key === 'Escape') {
+        setDesktopContextMenu(null);
+      }
+    }
+
+    if (!desktopContextMenu) return undefined;
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [desktopContextMenu]);
+  useEffect(() => {
     function updateDesktopSize() {
       setDesktopWidth(ref.current?.clientWidth || window.innerWidth);
+      setDesktopHeight(ref.current?.clientHeight || window.innerHeight);
     }
 
     updateDesktopSize();
@@ -362,14 +557,31 @@ function WinXP({ enableLayoutDebug = false }) {
       window.removeEventListener('resize', updateDesktopSize);
     };
   }, []);
+  useEffect(() => {
+    scheduleNextWallpaperChangeRef.current();
+
+    return () => {
+      if (wallpaperRotationTimeoutRef.current) {
+        window.clearTimeout(wallpaperRotationTimeoutRef.current);
+      }
+      if (wallpaperTransitionTimeoutRef.current) {
+        window.clearTimeout(wallpaperTransitionTimeoutRef.current);
+      }
+      if (wallpaperFadeFrameRef.current) {
+        window.cancelAnimationFrame(wallpaperFadeFrameRef.current);
+      }
+    };
+  }, []);
 
   const launchApp = useCallback(
     descriptor => {
+      setDesktopContextMenu(null);
       dispatch({ type: ADD_APP, payload: descriptor });
     },
     [dispatch],
   );
   const onFocusApp = useCallback(id => {
+    setDesktopContextMenu(null);
     dispatch({ type: FOCUS_APP, payload: id });
   }, []);
   const onMaximizeWindow = useCallback(
@@ -397,6 +609,7 @@ function WinXP({ enableLayoutDebug = false }) {
     [focusedAppId],
   );
   function onMouseDownFooterApp(id) {
+    setDesktopContextMenu(null);
     if (focusedAppId === id) {
       dispatch({ type: MINIMIZE_APP, payload: id });
     } else {
@@ -404,6 +617,7 @@ function WinXP({ enableLayoutDebug = false }) {
     }
   }
   function onMouseDownIcon(id) {
+    setDesktopContextMenu(null);
     dispatch({ type: FOCUS_ICON, payload: id });
   }
   function onDoubleClickIcon(icon) {
@@ -428,6 +642,7 @@ function WinXP({ enableLayoutDebug = false }) {
     return focusedApp ? focusedApp.id : -1;
   }
   function onMouseDownFooter() {
+    setDesktopContextMenu(null);
     dispatch({ type: FOCUS_DESKTOP });
   }
   function onClickMenuItem(o) {
@@ -445,6 +660,8 @@ function WinXP({ enableLayoutDebug = false }) {
     }
   }
   function onMouseDownDesktop(e) {
+    if (e.button !== 0) return;
+    setDesktopContextMenu(null);
     if (e.target === e.currentTarget)
       dispatch({
         type: START_SELECT,
@@ -514,16 +731,186 @@ function WinXP({ enableLayoutDebug = false }) {
     });
     dispatch({ type: FOCUS_DESKTOP });
   }
+
+  function clearWallpaperRotationTimer() {
+    if (wallpaperRotationTimeoutRef.current) {
+      window.clearTimeout(wallpaperRotationTimeoutRef.current);
+      wallpaperRotationTimeoutRef.current = null;
+    }
+  }
+
+  function clearWallpaperTransition() {
+    wallpaperPreloadTokenRef.current += 1;
+    if (wallpaperTransitionTimeoutRef.current) {
+      window.clearTimeout(wallpaperTransitionTimeoutRef.current);
+      wallpaperTransitionTimeoutRef.current = null;
+    }
+    if (wallpaperFadeFrameRef.current) {
+      window.cancelAnimationFrame(wallpaperFadeFrameRef.current);
+      wallpaperFadeFrameRef.current = null;
+    }
+    transitionWallpaperIdRef.current = null;
+    setTransitionWallpaper(null);
+    setIsTransitionWallpaperReady(false);
+    setIsWallpaperFadingIn(false);
+  }
+
+  function scheduleNextWallpaperChange() {
+    clearWallpaperRotationTimer();
+    wallpaperRotationTimeoutRef.current = window.setTimeout(() => {
+      advanceWallpaperRef.current();
+    }, getRandomRotationDelay());
+  }
+
+  function getNextWallpaperFromQueue() {
+    if (!wallpaperQueueRef.current.length) {
+      wallpaperQueueRef.current = createWallpaperQueue(
+        currentWallpaperIdRef.current,
+      );
+    }
+
+    const [nextWallpaper, ...remainingWallpapers] = wallpaperQueueRef.current;
+    wallpaperQueueRef.current = remainingWallpapers;
+    return nextWallpaper || null;
+  }
+
+  function finalizeWallpaperTransition(nextWallpaper) {
+    currentWallpaperIdRef.current = nextWallpaper.id;
+    transitionWallpaperIdRef.current = null;
+    wallpaperTransitionTimeoutRef.current = null;
+    wallpaperFadeFrameRef.current = null;
+    setCurrentWallpaper(nextWallpaper);
+    setTransitionWallpaper(null);
+    setIsTransitionWallpaperReady(false);
+    setIsWallpaperFadingIn(false);
+    scheduleNextWallpaperChangeRef.current();
+  }
+
+  function startWallpaperFade(nextWallpaper, preloadToken) {
+    if (preloadToken !== wallpaperPreloadTokenRef.current) return;
+
+    transitionWallpaperIdRef.current = nextWallpaper.id;
+    setTransitionWallpaper(nextWallpaper);
+    setIsTransitionWallpaperReady(true);
+    wallpaperFadeFrameRef.current = window.requestAnimationFrame(() => {
+      if (preloadToken !== wallpaperPreloadTokenRef.current) return;
+      setIsWallpaperFadingIn(true);
+    });
+
+    wallpaperTransitionTimeoutRef.current = window.setTimeout(() => {
+      if (preloadToken !== wallpaperPreloadTokenRef.current) return;
+      finalizeWallpaperTransition(nextWallpaper);
+    }, WALLPAPER_FADE_MS);
+  }
+
+  async function preloadWallpaper(nextWallpaper, preloadToken) {
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = nextWallpaper.url;
+
+    if (image.decode) {
+      try {
+        await image.decode();
+      } catch (error) {
+        if (preloadToken !== wallpaperPreloadTokenRef.current) return;
+        finalizeWallpaperTransition(nextWallpaper);
+        return;
+      }
+      startWallpaperFade(nextWallpaper, preloadToken);
+      return;
+    }
+
+    if (image.complete) {
+      startWallpaperFade(nextWallpaper, preloadToken);
+      return;
+    }
+
+    image.onload = () => {
+      startWallpaperFade(nextWallpaper, preloadToken);
+    };
+    image.onerror = () => {
+      if (preloadToken !== wallpaperPreloadTokenRef.current) return;
+      finalizeWallpaperTransition(nextWallpaper);
+    };
+  }
+
+  function changeWallpaper(nextWallpaper) {
+    if (!nextWallpaper) return;
+    if (
+      nextWallpaper.id === currentWallpaperIdRef.current ||
+      nextWallpaper.id === transitionWallpaperIdRef.current
+    ) {
+      scheduleNextWallpaperChange();
+      return;
+    }
+
+    setDesktopContextMenu(null);
+    clearWallpaperRotationTimer();
+    clearWallpaperTransition();
+    const preloadToken = wallpaperPreloadTokenRef.current;
+    setIsTransitionWallpaperReady(false);
+    setIsWallpaperFadingIn(false);
+    preloadWallpaper(nextWallpaper, preloadToken);
+  }
+
+  function advanceWallpaper() {
+    changeWallpaper(getNextWallpaperFromQueue());
+  }
+
+  function setBlissWallpaper() {
+    setDesktopContextMenu(null);
+    clearWallpaperRotationTimer();
+    clearWallpaperTransition();
+    wallpaperQueueRef.current = createWallpaperQueue(XP_WALLPAPER.id);
+
+    if (currentWallpaperIdRef.current === XP_WALLPAPER.id) {
+      setCurrentWallpaper(XP_WALLPAPER);
+      scheduleNextWallpaperChangeRef.current();
+      return;
+    }
+
+    const preloadToken = wallpaperPreloadTokenRef.current;
+    setIsTransitionWallpaperReady(false);
+    setIsWallpaperFadingIn(false);
+    preloadWallpaper(XP_WALLPAPER, preloadToken);
+  }
+
+  function onDesktopContextMenu(event) {
+    if (event.target !== event.currentTarget) return;
+    event.preventDefault();
+    setDesktopContextMenu(
+      clampDesktopContextMenuPosition(event.clientX, event.clientY),
+    );
+    dispatch({ type: END_SELECT });
+    dispatch({ type: FOCUS_DESKTOP });
+  }
+
+  scheduleNextWallpaperChangeRef.current = scheduleNextWallpaperChange;
+  advanceWallpaperRef.current = advanceWallpaper;
+
   return (
     <Container
       ref={ref}
       onMouseUp={onMouseUpDesktop}
       onMouseDown={onMouseDownDesktop}
+      onContextMenu={onDesktopContextMenu}
       state={state.powerState}
     >
+      <WallpaperImage alt="" draggable={false} src={currentWallpaper.url} />
+      {transitionWallpaper && (
+        <WallpaperFadeImage
+          alt=""
+          draggable={false}
+          key={transitionWallpaper.id}
+          src={transitionWallpaper.url}
+          visible={isTransitionWallpaperReady && isWallpaperFadingIn}
+        />
+      )}
       <Icons
-        icons={state.icons}
+        icons={renderedIcons}
         onMouseDown={onMouseDownIcon}
+        onBackgroundMouseDown={onMouseDownDesktop}
+        onBackgroundContextMenu={onDesktopContextMenu}
         onDoubleClick={onDoubleClickIcon}
         displayFocus={state.focusing === FOCUSING.ICON}
         mouse={mouse}
@@ -532,7 +919,9 @@ function WinXP({ enableLayoutDebug = false }) {
         debugMode={enableLayoutDebug}
         onReorderIcon={onReorderIcon}
         maxGridIndex={maxDesktopGridIndex}
-        rowsPerColumn={ROWS_PER_COLUMN}
+        rowsPerColumn={
+          enableLayoutDebug ? ROWS_PER_COLUMN : responsiveMetrics.rows
+        }
       />
       {enableLayoutDebug && (
         <LayoutDebugPanel>
@@ -603,6 +992,23 @@ function WinXP({ enableLayoutDebug = false }) {
           </div>
         </LayoutDebugPanel>
       )}
+      {desktopContextMenu && (
+        <DesktopContextMenu
+          onMouseDown={event => event.stopPropagation()}
+          onContextMenu={event => event.preventDefault()}
+          x={desktopContextMenu.x}
+          y={desktopContextMenu.y}
+        >
+          <DesktopContextMenuItem type="button" onClick={advanceWallpaper}>
+            <img src={pictureIcon} alt="" />
+            <span>Change wallpaper...</span>
+          </DesktopContextMenuItem>
+          <DesktopContextMenuItem type="button" onClick={setBlissWallpaper}>
+            <img src={pictureIcon} alt="" />
+            <span>Set Bliss</span>
+          </DesktopContextMenuItem>
+        </DesktopContextMenu>
+      )}
       <DashedBox startPos={state.selecting} mouse={mouse} />
       <Windows
         apps={state.apps}
@@ -654,11 +1060,62 @@ const Container = styled.div`
   position: fixed;
   inset: 0;
   overflow: hidden;
-  background: url(https://i.imgur.com/Zk6TR5k.jpg) no-repeat center center fixed;
-  background-size: cover;
+  background: #3d6ba5;
   animation: ${({ state }) => animation[state]} 5s forwards;
   *:not(input):not(textarea) {
     user-select: none;
+  }
+`;
+
+const WallpaperImage = styled.img`
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+`;
+
+const WallpaperFadeImage = styled(WallpaperImage)`
+  opacity: ${({ visible }) => (visible ? 1 : 0)};
+  transition: opacity ${WALLPAPER_FADE_MS}ms ease-in-out;
+`;
+
+const DesktopContextMenu = styled.div`
+  position: absolute;
+  left: ${({ x }) => `${x}px`};
+  top: ${({ y }) => `${y}px`};
+  min-width: ${DESKTOP_CONTEXT_MENU_WIDTH}px;
+  padding: 1px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #72ade9, 2px 3px 3px rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+`;
+
+const DesktopContextMenuItem = styled.button`
+  width: 100%;
+  height: 28px;
+  padding: 0 10px 0 8px;
+  border: 0;
+  background: transparent;
+  color: #000;
+  font-size: 11px;
+  font-family: Tahoma, 'Noto Sans', sans-serif;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &:hover {
+    background: #1b65cc;
+    color: #fff;
+  }
+
+  img {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
   }
 `;
 

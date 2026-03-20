@@ -28,6 +28,7 @@ const {
   sortSubmissions,
 } = require('./drawings-store');
 const {
+  getClientIp,
   methodNotAllowed,
   noStore,
   readJsonBody,
@@ -37,11 +38,37 @@ const {
 } = require('./http');
 const { sendSubmissionNotification } = require('./ntfy');
 
+const SUBMISSION_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const SUBMISSION_RATE_LIMIT_MAX = 5;
+const submissionRateLimitStore = new Map();
+
 function assertMethod(req, res, allowedMethods) {
   if (!allowedMethods.includes(req.method)) {
     methodNotAllowed(res, allowedMethods);
     return false;
   }
+  return true;
+}
+
+function assertSubmissionRateLimit(req, res) {
+  const now = Date.now();
+  const clientIp = getClientIp(req);
+  const bucket = submissionRateLimitStore.get(clientIp) || [];
+  const activeEntries = bucket.filter(
+    stamp => now - stamp < SUBMISSION_RATE_LIMIT_WINDOW_MS,
+  );
+
+  if (activeEntries.length >= SUBMISSION_RATE_LIMIT_MAX) {
+    sendError(
+      res,
+      429,
+      'Too many submissions from this IP. Try again later.',
+    );
+    return false;
+  }
+
+  activeEntries.push(now);
+  submissionRateLimitStore.set(clientIp, activeEntries);
   return true;
 }
 
@@ -63,6 +90,7 @@ function parseSubmissionImage(imageDataUrl) {
 
 async function handleCreateSubmission(req, res) {
   if (!assertMethod(req, res, ['POST'])) return;
+  if (!assertSubmissionRateLimit(req, res)) return;
 
   try {
     const body = await readJsonBody(req);

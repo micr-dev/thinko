@@ -12,6 +12,8 @@ const ICON_GRID_TOP_TAURI = 36;
 function Icons({
   icons,
   onMouseDown,
+  onBackgroundMouseDown,
+  onBackgroundContextMenu,
   onDoubleClick,
   displayFocus,
   mouse,
@@ -96,6 +98,20 @@ function Icons({
     onReorderIcon(pointerDragIconId, targetGridIndex);
   }
 
+  function onContainerMouseDown(event) {
+    if (event.target !== event.currentTarget) return;
+    if (onBackgroundMouseDown) {
+      onBackgroundMouseDown(event);
+    }
+  }
+
+  function onContainerContextMenu(event) {
+    if (event.target !== event.currentTarget) return;
+    if (onBackgroundContextMenu) {
+      onBackgroundContextMenu(event);
+    }
+  }
+
   const sortedIcons = [...icons].sort(
     (left, right) =>
       (left.gridIndex ?? left.id) - (right.gridIndex ?? right.id),
@@ -105,6 +121,8 @@ function Icons({
     <IconsContainer
       ref={containerRef}
       isTauri={Boolean(isTauri)}
+      onMouseDown={onContainerMouseDown}
+      onContextMenu={onContainerContextMenu}
       onMouseMove={onPointerMove}
     >
       {sortedIcons.map(icon => (

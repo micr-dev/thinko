@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /layout
+
+Sitemap: https://thinko.micr.dev/sitemap.xml

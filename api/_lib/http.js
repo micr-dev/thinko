@@ -14,6 +14,20 @@ function getHeader(req, name) {
   return Array.isArray(value) ? value[0] : value || '';
 }
 
+function getClientIp(req) {
+  const forwardedFor = getHeader(req, 'x-forwarded-for');
+  if (forwardedFor) {
+    return forwardedFor.split(',')[0].trim();
+  }
+
+  return (
+    req.ip ||
+    req.socket?.remoteAddress ||
+    req.connection?.remoteAddress ||
+    'unknown'
+  );
+}
+
 async function readRawBody(req) {
   if (req.body && typeof req.body === 'string') {
     return req.body;
@@ -73,6 +87,7 @@ function noStore(res) {
 }
 
 module.exports = {
+  getClientIp,
   getHeader,
   methodNotAllowed,
   noStore,

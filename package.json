@@ -1,9 +1,9 @@
 {
-  "name": "winXP",
+  "name": "thinko",
   "version": "0.1.0",
   "private": true,
-  "author": "ShizukuIchi <shizukuichi@gmail.com>",
-  "homepage": "https://winxp.now.sh",
+  "author": "Microck <contact@micr.dev>",
+  "homepage": "https://thinko.micr.dev",
   "dependencies": {
     "@vercel/blob": "^2.3.1",
     "agentation": "^2.3.3",
