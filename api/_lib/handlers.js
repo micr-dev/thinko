@@ -9,7 +9,7 @@ const {
   setAdminSession,
   setOauthState,
 } = require('./auth');
-const { ADMIN_PATH, getGitHubConfig } = require('./config');
+const { ADMIN_PATH, getBaseUrl, getGitHubConfig } = require('./config');
 const {
   buildPublicCommission,
   deleteCommission,
@@ -41,6 +41,9 @@ const { sendSubmissionNotification } = require('./ntfy');
 const SUBMISSION_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const SUBMISSION_RATE_LIMIT_MAX = 5;
 const submissionRateLimitStore = new Map();
+const CATBOX_UPLOAD_URL = 'https://catbox.moe/user/api.php';
+const CATBOX_RESULT_PATTERN = /^https:\/\/files\.catbox\.moe\/\S+$/i;
+const COMMISSION_DRAFT_PATH_PREFIX = '/custom/commission-drafts/';
 
 function assertMethod(req, res, allowedMethods) {
   if (!allowedMethods.includes(req.method)) {
@@ -82,6 +85,115 @@ function parseSubmissionImage(imageDataUrl) {
     imageDataUrl.replace('data:image/png;base64,', ''),
     'base64',
   );
+}
+
+function parseCommissionImageDataUrl(imageDataUrl) {
+  if (typeof imageDataUrl !== 'string') {
+    const error = new Error('Commission image is required');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const match = imageDataUrl.match(
+    /^data:(image\/png|image\/jpeg|image\/webp);base64,(.+)$/,
+  );
+  if (!match) {
+    const error = new Error('Commission image must be a PNG, JPG, or WEBP');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return {
+    mimeType: match[1],
+    buffer: Buffer.from(match[2], 'base64'),
+  };
+}
+
+function inferMimeTypeFromFileName(fileName) {
+  if (/\.png$/i.test(fileName)) return 'image/png';
+  if (/\.(jpe?g|jfif)$/i.test(fileName)) return 'image/jpeg';
+  if (/\.webp$/i.test(fileName)) return 'image/webp';
+  return 'application/octet-stream';
+}
+
+function normalizeDraftImageUrl(sourceImageUrl, req) {
+  if (typeof sourceImageUrl !== 'string' || !sourceImageUrl.trim()) {
+    return '';
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(sourceImageUrl, getBaseUrl(req));
+  } catch (error) {
+    const invalidUrlError = new Error('Commission draft image URL is invalid');
+    invalidUrlError.statusCode = 400;
+    throw invalidUrlError;
+  }
+
+  if (
+    parsedUrl.origin !== getBaseUrl(req) ||
+    !parsedUrl.pathname.startsWith(COMMISSION_DRAFT_PATH_PREFIX)
+  ) {
+    const invalidSourceError = new Error(
+      'Commission draft source is not allowed',
+    );
+    invalidSourceError.statusCode = 400;
+    throw invalidSourceError;
+  }
+
+  return parsedUrl.toString();
+}
+
+async function uploadBufferToCatbox(buffer, mimeType, fileName) {
+  const formData = new FormData();
+  const blob = new Blob([buffer], { type: mimeType });
+
+  formData.append('reqtype', 'fileupload');
+  formData.append('fileToUpload', blob, fileName);
+
+  const response = await fetch(CATBOX_UPLOAD_URL, {
+    method: 'POST',
+    body: formData,
+  });
+
+  const responseText = (await response.text()).trim();
+  if (!response.ok || !CATBOX_RESULT_PATTERN.test(responseText)) {
+    const error = new Error(responseText || 'Catbox upload failed');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return responseText;
+}
+
+async function uploadCommissionImageToCatbox(body, req) {
+  if (body.sourceImageUrl) {
+    const sourceUrl = normalizeDraftImageUrl(body.sourceImageUrl, req);
+    const sourceResponse = await fetch(sourceUrl, {
+      cache: 'no-store',
+    });
+
+    if (!sourceResponse.ok) {
+      const error = new Error('Failed to load the selected draft image');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const buffer = Buffer.from(await sourceResponse.arrayBuffer());
+    const fileName =
+      body.imageName ||
+      sourceUrl.slice(sourceUrl.lastIndexOf('/') + 1) ||
+      'commission-image';
+    const mimeType =
+      sourceResponse.headers.get('content-type') ||
+      inferMimeTypeFromFileName(fileName);
+
+    return uploadBufferToCatbox(buffer, mimeType, fileName);
+  }
+
+  const imageInfo = parseCommissionImageDataUrl(body.imageDataUrl);
+  const fileName = body.imageName || 'commission-image';
+  return uploadBufferToCatbox(imageInfo.buffer, imageInfo.mimeType, fileName);
 }
 
 async function handleCreateSubmission(req, res) {
@@ -259,6 +371,35 @@ async function handleAdminCommissions(req, res) {
       res,
       error.statusCode || 500,
       error.message || 'Commission save failed',
+    );
+  }
+}
+
+async function handleUploadCommissionImage(req, res) {
+  if (!assertMethod(req, res, ['POST'])) return;
+
+  noStore(res);
+  const session = requireAdmin(req, res);
+  if (!session) return;
+
+  try {
+    const body = await readJsonBody(req);
+    if (!body.sourceImageUrl && !body.imageDataUrl) {
+      sendError(res, 400, 'Commission image is required');
+      return;
+    }
+
+    const imageUrl = await uploadCommissionImageToCatbox(body, req);
+    sendJson(res, 200, {
+      ok: true,
+      imageUrl,
+      reviewer: session.login,
+    });
+  } catch (error) {
+    sendError(
+      res,
+      error.statusCode || 500,
+      error.message || 'Commission upload failed',
     );
   }
 }
@@ -557,4 +698,5 @@ module.exports = {
   handlePublicCommissionImage,
   handleListPublicDrawings,
   handleRejectSubmission,
+  handleUploadCommissionImage,
 };

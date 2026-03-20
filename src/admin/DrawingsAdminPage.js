@@ -20,6 +20,7 @@ const DEFAULT_COMMISSION_FORM = {
   description: '',
   row: '',
   column: '',
+  imageDataUrl: '',
   imagePreviewUrl: '',
   imageName: '',
   sourceImageUrl: '',
@@ -243,6 +244,7 @@ function DrawingsAdminPage() {
       description: commission.description || '',
       row: String(row),
       column: String(column),
+      imageDataUrl: '',
       imagePreviewUrl: commission.imageUrl || '',
       imageName: '',
       sourceImageUrl: '',
@@ -263,6 +265,7 @@ function DrawingsAdminPage() {
     setCommissionImageFile(file);
     setCommissionForm(current => ({
       ...current,
+      imageDataUrl: '',
       imagePreviewUrl: URL.createObjectURL(file),
       imageName: file.name,
       sourceImageUrl: '',
@@ -297,22 +300,33 @@ function DrawingsAdminPage() {
       }
 
       let uploadedImageUrl;
-      if (commissionImageFile) {
+      if (commissionImageFile || commissionForm.sourceImageUrl) {
         setIsUploadingCommissionImage(true);
         try {
-          uploadedImageUrl = await uploadCommissionImageToCatbox(
-            commissionImageFile,
-          );
-        } finally {
-          setIsUploadingCommissionImage(false);
-        }
-      } else if (commissionForm.sourceImageUrl) {
-        setIsUploadingCommissionImage(true);
-        try {
-          uploadedImageUrl = await uploadCommissionSourceUrlToCatbox(
-            commissionForm.sourceImageUrl,
-            commissionForm.imageName || 'commission-image',
-          );
+          const uploadResponse = await fetch('/api/admin/commissions/upload', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              sourceImageUrl: commissionForm.sourceImageUrl || undefined,
+              imageDataUrl: commissionImageFile
+                ? await readFileAsDataUrl(commissionImageFile)
+                : undefined,
+              imageName: commissionForm.imageName || undefined,
+            }),
+          });
+
+          const uploadText = await uploadResponse.text();
+          const uploadPayload = safeParseJson(uploadText);
+          if (!uploadResponse.ok) {
+            throw new Error(
+              uploadPayload.error || uploadText || 'Commission upload failed',
+            );
+          }
+
+          uploadedImageUrl = uploadPayload.imageUrl;
         } finally {
           setIsUploadingCommissionImage(false);
         }
@@ -724,50 +738,13 @@ function safeParseJson(value) {
   }
 }
 
-async function uploadCommissionImageToCatbox(file) {
-  const formData = new FormData();
-  formData.append('reqtype', 'fileupload');
-  formData.append('fileToUpload', file, file.name);
-
-  const response = await fetch('https://catbox.moe/user/api.php', {
-    method: 'POST',
-    body: formData,
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Failed to read image file'));
+    reader.readAsDataURL(file);
   });
-
-  const responseText = (await response.text()).trim();
-  if (!response.ok) {
-    throw new Error(responseText || 'Catbox upload failed');
-  }
-
-  if (!/^https:\/\/files\.catbox\.moe\/\S+$/i.test(responseText)) {
-    throw new Error(responseText || 'Catbox upload failed');
-  }
-
-  return responseText;
-}
-
-async function uploadCommissionSourceUrlToCatbox(sourceUrl, fileName) {
-  const sourceResponse = await fetch(sourceUrl, {
-    cache: 'no-store',
-  });
-
-  if (!sourceResponse.ok) {
-    throw new Error('Failed to load the selected draft image');
-  }
-
-  const blob = await sourceResponse.blob();
-  const file = new File([blob], fileName, {
-    type: blob.type || inferMimeTypeFromFileName(fileName),
-  });
-
-  return uploadCommissionImageToCatbox(file);
-}
-
-function inferMimeTypeFromFileName(fileName) {
-  if (/\.png$/i.test(fileName)) return 'image/png';
-  if (/\.(jpe?g|jfif)$/i.test(fileName)) return 'image/jpeg';
-  if (/\.webp$/i.test(fileName)) return 'image/webp';
-  return 'application/octet-stream';
 }
 
 const Screen = styled.div`

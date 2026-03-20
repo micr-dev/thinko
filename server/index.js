@@ -16,6 +16,7 @@ const {
   handlePublicDrawingImage,
   handlePublicCommissionImage,
   handleRejectSubmission,
+  handleUploadCommissionImage,
 } = require('../api/_lib/handlers');
 
 const PORT = Number(process.env.DRAWINGS_SERVER_PORT || 4748);
@@ -36,6 +37,7 @@ app.post('/api/admin/drawings/approve', handleApproveSubmission);
 app.post('/api/admin/drawings/reject', handleRejectSubmission);
 app.get('/api/admin/commissions', handleAdminCommissions);
 app.post('/api/admin/commissions', handleAdminCommissions);
+app.post('/api/admin/commissions/upload', handleUploadCommissionImage);
 app.post('/api/admin/commissions/delete', handleDeleteCommission);
 app.get('/api/admin/oauth/github/start', handleGitHubStart);
 app.get('/api/admin/oauth/github/callback', handleGitHubCallback);

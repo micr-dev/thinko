@@ -14,11 +14,13 @@ const {
   handlePublicCommissionImage,
   handlePublicDrawingImage,
   handleRejectSubmission,
+  handleUploadCommissionImage,
 } = require('./_lib/handlers');
 const { sendError } = require('./_lib/http');
 
 const ROUTE_HANDLERS = {
   'admin/commissions': handleAdminCommissions,
+  'admin/commissions/upload': handleUploadCommissionImage,
   'admin/commissions/delete': handleDeleteCommission,
   'admin/drawings/approve': handleApproveSubmission,
   'admin/drawings/image': handleAdminSubmissionImage,
