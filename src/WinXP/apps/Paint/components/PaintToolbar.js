@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 
-const tools = [
+const defaultTools = [
   { id: 'select', icon: '/icons/default/macpaint/lasso.png', label: 'Lasso' },
   {
     id: 'rect-select',
@@ -24,7 +24,7 @@ const tools = [
   { id: 'oval', icon: '/icons/default/macpaint/oval.png', label: 'Oval' },
 ];
 
-function PaintToolbar({ selectedTool, onToolSelect }) {
+function PaintToolbar({ selectedTool, onToolSelect, tools = defaultTools }) {
   return (
     <Grid>
       {tools.map(tool => (

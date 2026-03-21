@@ -86,7 +86,15 @@ age: 19`,
   },
 ];
 
-export const characterDocumentIcons = CHARACTER_DOCUMENTS.map(
+export const characterDocuments = CHARACTER_DOCUMENTS.map(document => ({
+  id: document.id,
+  fileName: document.fileName,
+  rowOffset: document.rowOffset,
+  windowSize: document.windowSize,
+  body: document.body,
+}));
+
+export const characterDocumentIcons = characterDocuments.map(
   ({ id, fileName, rowOffset, body, windowSize }, index) => ({
     id,
     icon: textFileIcon,
