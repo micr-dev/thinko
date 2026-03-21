@@ -135,4 +135,7 @@ const Help = [
     text: 'About Notepad',
   },
 ];
-export default { File, Edit, Format, View, Help };
+
+const dropDownData = { File, Edit, Format, View, Help };
+
+export default dropDownData;
