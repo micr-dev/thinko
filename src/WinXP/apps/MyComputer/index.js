@@ -495,7 +495,10 @@ const Div = styled.div`
     height: 100%;
     position: relative;
     &__img {
-      height: 95%;
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      display: block;
       border: 1px solid rgba(255, 255, 255, 0.2);
       margin-right: 3px;
     }

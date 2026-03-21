@@ -37,6 +37,7 @@ import Modal from './Modal';
 import Footer from './Footer';
 import Windows from './Windows';
 import Icons from './Icons';
+import { playStartupSoundOnce, playXpSound } from './xp-sounds';
 import { DashedBox } from 'components';
 
 const ICON_COLUMN_WIDTH = 96;
@@ -486,6 +487,9 @@ function WinXP({ enableLayoutDebug = false }) {
   );
 
   useEffect(() => {
+    playStartupSoundOnce();
+  }, []);
+  useEffect(() => {
     const previousHtmlOverflow = document.documentElement.style.overflow;
     const previousBodyOverflow = document.body.style.overflow;
 
@@ -701,6 +705,12 @@ function WinXP({ enableLayoutDebug = false }) {
     [activeDebugIcon, maxDesktopGridIndex, onReorderIcon],
   );
   function onClickModalButton(text) {
+    if (text === 'Log Off') {
+      playXpSound('logoff');
+    } else if (text === 'Turn Off') {
+      playXpSound('shutdown');
+    }
+
     dispatch({ type: CANCEL_POWER_OFF });
     dispatch({
       type: ADD_APP,

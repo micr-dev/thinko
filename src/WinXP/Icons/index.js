@@ -6,6 +6,7 @@ const ICON_COLUMN_GAP = 1;
 const ICON_ROW_HEIGHT = 83;
 const ICON_ROW_GAP = 8;
 const ICON_GRID_LEFT = 4;
+const ICON_GRID_RIGHT = 20;
 const ICON_GRID_TOP_WEB = 8;
 const ICON_GRID_TOP_TAURI = 36;
 
@@ -129,6 +130,7 @@ function Icons({
         <StyledIcon
           key={icon.id}
           {...icon}
+          isTauri={Boolean(isTauri)}
           displayFocus={displayFocus}
           onMouseDown={onMouseDown}
           onDoubleClick={onDoubleClick}
@@ -157,6 +159,8 @@ function Icon({
   measure,
   debugMode,
   gridIndex,
+  desktopAnchor,
+  isTauri,
   pointerDragIconId,
   setPointerDragIconId,
   rowsPerColumn,
@@ -164,7 +168,7 @@ function Icon({
   const ref = useRef(null);
   function _onMouseDown(event) {
     onMouseDown(id);
-    if (debugMode && event.button === 0) {
+    if (debugMode && event.button === 0 && !desktopAnchor) {
       setPointerDragIconId(id);
     }
   }
@@ -191,10 +195,19 @@ function Icon({
       onDoubleClick={_onDoubleClick}
       onMouseUp={onMouseUp}
       ref={ref}
-      style={{
-        gridColumnStart: Math.floor(gridIndex / rowsPerColumn) + 1,
-        gridRowStart: (gridIndex % rowsPerColumn) + 1,
-      }}
+      style={
+        desktopAnchor?.corner === 'top-right'
+          ? {
+              position: 'absolute',
+              right: `calc(env(safe-area-inset-right, 0px) + ${ICON_GRID_RIGHT}px)`,
+              top: `${(isTauri ? ICON_GRID_TOP_TAURI : ICON_GRID_TOP_WEB) +
+                desktopAnchor.rowOffset * (ICON_ROW_HEIGHT + ICON_ROW_GAP)}px`,
+            }
+          : {
+              gridColumnStart: Math.floor(gridIndex / rowsPerColumn) + 1,
+              gridRowStart: (gridIndex % rowsPerColumn) + 1,
+            }
+      }
       title={
         debugMode
           ? `${title} - row ${(gridIndex % rowsPerColumn) +
@@ -236,9 +249,11 @@ const StyledIcon = styled(Icon)`
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  cursor: ${({ debugMode }) => (debugMode ? 'grab' : 'default')};
+  cursor: ${({ debugMode, desktopAnchor }) =>
+    debugMode && !desktopAnchor ? 'grab' : 'default'};
   &:active {
-    cursor: ${({ debugMode }) => (debugMode ? 'grabbing' : 'default')};
+    cursor: ${({ debugMode, desktopAnchor }) =>
+      debugMode && !desktopAnchor ? 'grabbing' : 'default'};
   }
   &__text__container {
     width: 96px;

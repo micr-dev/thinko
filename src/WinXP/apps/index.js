@@ -8,6 +8,7 @@ import VirtualPc, { games } from './virtual-pc';
 import IWBTG from './iwbtg';
 import NyanCat from './nyan-cat';
 import CommissionViewer from './commission-viewer';
+import { characterDocumentIcons } from './character-documents';
 import defaultIconGridIndexes from './default-icon-grid-indexes.json';
 import mine from 'assets/minesweeper/mine-icon.png';
 import error from 'assets/windowsIcons/897(16x16).png';
@@ -194,6 +195,7 @@ export const defaultIconState = [
     gridIndex: defaultIconGridIndexes[firstExtraIconId],
     isFocus: false,
   },
+  ...characterDocumentIcons,
 ];
 
 export const appSettings = {

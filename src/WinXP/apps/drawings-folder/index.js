@@ -262,8 +262,10 @@ const AddressBar = styled.div`
   }
 
   .address__go img {
-    height: 95%;
-    width: auto;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    display: block;
     border: 1px solid rgba(255, 255, 255, 0.2);
   }
 `;

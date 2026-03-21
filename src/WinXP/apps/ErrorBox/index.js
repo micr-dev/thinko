@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import styled from 'styled-components';
 
-import errorSoundSrc from 'assets/sounds/error.wav';
 import error from 'assets/windowsIcons/897(32x32).png';
+import { playXpSound } from 'WinXP/xp-sounds';
 
 function lineBreak(str) {
   return str.split('\n').map((s, i) => (
@@ -14,11 +14,7 @@ function lineBreak(str) {
 
 function Error({ onClose, message = "Something's wrong!" }) {
   useEffect(() => {
-    try {
-      new Audio(errorSoundSrc).play();
-    } catch (e) {
-      console.log(e);
-    }
+    playXpSound('criticalStop');
   }, []);
   return (
     <Div>
