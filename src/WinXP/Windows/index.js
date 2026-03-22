@@ -1,4 +1,4 @@
-import React, { useRef, memo } from 'react';
+import React, { Suspense, useRef, memo } from 'react';
 import useWindowSize from 'react-use/lib/useWindowSize';
 import styled from 'styled-components';
 
@@ -85,6 +85,7 @@ const Window = memo(function({
     resizeThreshold: 10,
   });
   let width, height, x, y;
+  const AppComponent = component;
   if (maximized) {
     width = windowWidth + 6;
     height = windowHeight - 24;
@@ -133,13 +134,17 @@ const Window = memo(function({
         />
       </header>
       <div className="app__content">
-        {component({
-          onClose: _onMouseUpClose,
-          onMinimize: _onMouseUpMinimize,
-          isFocus,
-          launchApp,
-          ...injectProps,
-        })}
+        <Suspense
+          fallback={<div className="app__content__loading">Loading...</div>}
+        >
+          <AppComponent
+            onClose={_onMouseUpClose}
+            onMinimize={_onMouseUpMinimize}
+            isFocus={isFocus}
+            launchApp={launchApp}
+            {...injectProps}
+          />
+        </Suspense>
       </div>
     </div>
   );
@@ -228,6 +233,16 @@ const StyledWindow = styled(Window)`
     margin-top: ${({ header }) => (header.invisible ? 0 : 25)}px;
     height: ${({ header }) =>
       header.invisible ? '100%' : 'calc(100% - 25px)'};
+  }
+  .app__content__loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 11px;
+    color: #3b3b3b;
+    background: #ece9d8;
   }
 `;
 

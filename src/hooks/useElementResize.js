@@ -1,5 +1,25 @@
 import { useEffect, useState } from 'react';
 
+export function getInteractionFocusTarget(container, activeElement) {
+  if (
+    !container ||
+    !activeElement ||
+    typeof container.contains !== 'function'
+  ) {
+    return null;
+  }
+
+  return container.contains(activeElement) ? activeElement : null;
+}
+
+export function restoreInteractionFocus(target) {
+  if (!target || !target.isConnected || typeof target.focus !== 'function') {
+    return;
+  }
+
+  target.focus();
+}
+
 function useElementResize(ref, options) {
   const {
     defaultOffset,
@@ -27,7 +47,20 @@ function useElementResize(ref, options) {
     let _boundary;
     let originMouseX;
     let originMouseY;
+    let interactionFocusTarget = null;
     let shouldCover = false;
+
+    function captureInteractionFocusTarget() {
+      interactionFocusTarget = getInteractionFocusTarget(
+        target,
+        document.activeElement,
+      );
+    }
+
+    function restoreInteractionFocusTarget() {
+      restoreInteractionFocus(interactionFocusTarget);
+      interactionFocusTarget = null;
+    }
 
     function onDragging(e) {
       if (shouldCover && !document.body.contains(cover)) {
@@ -46,6 +79,7 @@ function useElementResize(ref, options) {
       previousOffset.y += pageY - originMouseY;
       window.removeEventListener('mousemove', onDragging);
       window.removeEventListener('mouseup', onDragEnd);
+      restoreInteractionFocusTarget();
     }
     function onDragStart(e) {
       window.addEventListener('mousemove', onDragging);
@@ -62,6 +96,7 @@ function useElementResize(ref, options) {
       previousOffset.y += pageY - originMouseY;
       window.removeEventListener('mousemove', onDraggingTop);
       window.removeEventListener('mouseup', onDragEndTop);
+      restoreInteractionFocusTarget();
     }
     function onDragStartTop(e) {
       window.addEventListener('mousemove', onDraggingTop);
@@ -78,6 +113,7 @@ function useElementResize(ref, options) {
       previousOffset.x += pageX - originMouseX;
       window.removeEventListener('mousemove', onDraggingLeft);
       window.removeEventListener('mouseup', onDragEndLeft);
+      restoreInteractionFocusTarget();
     }
     function onDragStartLeft(e) {
       window.addEventListener('mousemove', onDraggingLeft);
@@ -94,6 +130,7 @@ function useElementResize(ref, options) {
       previousSize.width += pageX - originMouseX;
       window.removeEventListener('mousemove', onResizingRight);
       window.removeEventListener('mouseup', onResizeEndRight);
+      restoreInteractionFocusTarget();
     }
     function onResizeStartRight(e) {
       window.addEventListener('mousemove', onResizingRight);
@@ -110,6 +147,7 @@ function useElementResize(ref, options) {
       previousSize.height += pageY - originMouseY;
       window.removeEventListener('mousemove', onResizingBottom);
       window.removeEventListener('mouseup', onResizeEndBottom);
+      restoreInteractionFocusTarget();
     }
     function onResizeStartBottom(e) {
       window.addEventListener('mousemove', onResizingBottom);
@@ -126,6 +164,7 @@ function useElementResize(ref, options) {
       previousSize.width += -pageX + originMouseX;
       window.removeEventListener('mousemove', onResizingLeft);
       window.removeEventListener('mouseup', onResizeEndLeft);
+      restoreInteractionFocusTarget();
     }
     function onResizeStartLeft(e) {
       window.addEventListener('mousemove', onResizingLeft);
@@ -142,6 +181,7 @@ function useElementResize(ref, options) {
       previousSize.height += -pageY + originMouseY;
       window.removeEventListener('mousemove', onResizingTop);
       window.removeEventListener('mouseup', onResizeEndTop);
+      restoreInteractionFocusTarget();
     }
     function onResizeStartTop(e) {
       window.addEventListener('mousemove', onResizingTop);
@@ -159,6 +199,7 @@ function useElementResize(ref, options) {
       previousSize.height += -pageY + originMouseY;
       window.removeEventListener('mousemove', onResizingTopLeft);
       window.removeEventListener('mouseup', onResizeEndTopLeft);
+      restoreInteractionFocusTarget();
     }
     function onResizeStartTopLeft(e) {
       window.addEventListener('mousemove', onResizingTopLeft);
@@ -176,6 +217,7 @@ function useElementResize(ref, options) {
       previousSize.height += -pageY + originMouseY;
       window.removeEventListener('mousemove', onResizingTopRight);
       window.removeEventListener('mouseup', onResizeEndTopRight);
+      restoreInteractionFocusTarget();
     }
     function onResizeStartTopRight(e) {
       window.addEventListener('mousemove', onResizingTopRight);
@@ -193,6 +235,7 @@ function useElementResize(ref, options) {
       previousSize.height += pageY - originMouseY;
       window.removeEventListener('mousemove', onResizingBottomLeft);
       window.removeEventListener('mouseup', onResizeEndBottomLeft);
+      restoreInteractionFocusTarget();
     }
     function onResizeStartBottomLeft(e) {
       window.addEventListener('mousemove', onResizingBottomLeft);
@@ -210,6 +253,7 @@ function useElementResize(ref, options) {
       previousSize.height += pageY - originMouseY;
       window.removeEventListener('mousemove', onResizingBottomRight);
       window.removeEventListener('mouseup', onResizeEndBottomRight);
+      restoreInteractionFocusTarget();
     }
     function onResizeStartBottomRight(e) {
       window.addEventListener('mousemove', onResizingBottomRight);
@@ -220,10 +264,12 @@ function useElementResize(ref, options) {
       originMouseY = e.pageY;
       _boundary = { ...boundary };
       if (dragTarget && e.target === dragTarget) {
+        captureInteractionFocusTarget();
         shouldCover = true;
         return onDragStart(e);
       }
       if (e.target !== target || !resizable) return;
+      captureInteractionFocusTarget();
       switch (cursorPos) {
         case 'topLeft':
           _boundary.right = originMouseX + previousSize.width - constraintSize;

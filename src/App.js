@@ -1,9 +1,29 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 
-import DrawingsAdminPage from './admin/DrawingsAdminPage';
-import MobileSite from './mobile-site/index';
 import { getBootExperience } from './app-mode';
-import WinXP from 'WinXP';
+
+const DrawingsAdminPage = lazy(() => import('./admin/DrawingsAdminPage'));
+const MobileSite = lazy(() => import('./mobile-site/index'));
+const WinXP = lazy(() => import('WinXP'));
+
+function RootLoadingScreen() {
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#245edb',
+        color: '#fff',
+        fontFamily: '"Trebuchet MS", sans-serif',
+        fontSize: '14px',
+      }}
+    >
+      Loading thinko...
+    </div>
+  );
+}
 
 const App = () => {
   const isAdminRoute = window.location.pathname.startsWith('/admin/drawings');
@@ -27,14 +47,26 @@ const App = () => {
   }, [isAdminRoute, isLayoutRoute]);
 
   if (isAdminRoute) {
-    return <DrawingsAdminPage />;
+    return (
+      <Suspense fallback={<RootLoadingScreen />}>
+        <DrawingsAdminPage />
+      </Suspense>
+    );
   }
 
   if (bootExperience === 'mobile') {
-    return <MobileSite />;
+    return (
+      <Suspense fallback={<RootLoadingScreen />}>
+        <MobileSite />
+      </Suspense>
+    );
   }
 
-  return <WinXP enableLayoutDebug={isLayoutRoute} />;
+  return (
+    <Suspense fallback={<RootLoadingScreen />}>
+      <WinXP enableLayoutDebug={isLayoutRoute} />
+    </Suspense>
+  );
 };
 
 export default App;

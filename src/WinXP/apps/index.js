@@ -1,15 +1,7 @@
-import Minesweeper from './Minesweeper';
-import ErrorBox from './ErrorBox';
-import MyComputer from './MyComputer';
-import Winamp from './Winamp';
-import Paint from './Paint';
-import DrawingsFolder from './drawings-folder';
-import VirtualPc, { games } from './virtual-pc';
-import IWBTG from './iwbtg';
-import NyanCat from './nyan-cat';
-import CommissionViewer from './commission-viewer';
+import { lazy } from 'react';
 import { characterDocumentIcons } from './character-documents';
 import defaultIconGridIndexes from './default-icon-grid-indexes.json';
+import { games } from './virtual-pc/game-registry';
 import mine from 'assets/minesweeper/mine-icon.png';
 import error from 'assets/windowsIcons/897(16x16).png';
 import computer from 'assets/windowsIcons/676(16x16).png';
@@ -19,6 +11,17 @@ import paintLarge from 'assets/windowsIcons/680(32x32).png';
 import paint from 'assets/windowsIcons/680(16x16).png';
 import picture from 'assets/windowsIcons/307(32x32).png';
 import recycleBinIcon from 'assets/windowsIcons/360(32x32).png';
+
+const Minesweeper = lazy(() => import('./Minesweeper'));
+const ErrorBox = lazy(() => import('./ErrorBox'));
+const MyComputer = lazy(() => import('./MyComputer'));
+const Winamp = lazy(() => import('./Winamp'));
+const Paint = lazy(() => import('./Paint'));
+const DrawingsFolder = lazy(() => import('./drawings-folder'));
+const VirtualPc = lazy(() => import('./virtual-pc'));
+const IWBTG = lazy(() => import('./iwbtg'));
+const NyanCat = lazy(() => import('./nyan-cat'));
+const CommissionViewer = lazy(() => import('./commission-viewer'));
 
 const nyanCatIcon = '/custom/nyan-cat/nyancat.png';
 const iwbtgIcon = '/custom/games/iwbtg.png';
