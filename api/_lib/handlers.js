@@ -41,10 +41,32 @@ const { sendSubmissionNotification } = require('./ntfy');
 
 const SUBMISSION_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const SUBMISSION_RATE_LIMIT_MAX = 5;
+const ADMIN_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const ADMIN_RATE_LIMIT_MAX = 30;
 const submissionRateLimitStore = new Map();
+const adminRateLimitStore = new Map();
+
+function cleanupRateLimitStore(store, windowMs) {
+  const now = Date.now();
+  for (const [key, timestamps] of store.entries()) {
+    const active = timestamps.filter(ts => now - ts < windowMs);
+    if (active.length === 0) {
+      store.delete(key);
+    } else if (active.length !== timestamps.length) {
+      store.set(key, active);
+    }
+  }
+}
+
+// Periodic cleanup to prevent memory leak
+setInterval(() => {
+  cleanupRateLimitStore(submissionRateLimitStore, SUBMISSION_RATE_LIMIT_WINDOW_MS);
+  cleanupRateLimitStore(adminRateLimitStore, ADMIN_RATE_LIMIT_WINDOW_MS);
+}, 60 * 1000); // Run cleanup every minute
 const CATBOX_UPLOAD_URL = 'https://catbox.moe/user/api.php';
 const CATBOX_RESULT_PATTERN = /^https:\/\/files\.catbox\.moe\/\S+$/i;
 const COMMISSION_DRAFT_PATH_PREFIX = '/custom/commission-drafts/';
+const MAX_SUBMISSION_SIZE = 5 * 1024 * 1024; // 5MB max for submissions
 
 function assertMethod(req, res, allowedMethods) {
   if (!allowedMethods.includes(req.method)) {
@@ -72,6 +94,24 @@ function assertSubmissionRateLimit(req, res) {
   return true;
 }
 
+function assertAdminRateLimit(req, res) {
+  const now = Date.now();
+  const clientIp = getClientIp(req);
+  const bucket = adminRateLimitStore.get(clientIp) || [];
+  const activeEntries = bucket.filter(
+    stamp => now - stamp < ADMIN_RATE_LIMIT_WINDOW_MS,
+  );
+
+  if (activeEntries.length >= ADMIN_RATE_LIMIT_MAX) {
+    sendError(res, 429, 'Too many requests from this IP. Try again later.');
+    return false;
+  }
+
+  activeEntries.push(now);
+  adminRateLimitStore.set(clientIp, activeEntries);
+  return true;
+}
+
 function parseSubmissionImage(imageDataUrl) {
   if (
     typeof imageDataUrl !== 'string' ||
@@ -82,10 +122,17 @@ function parseSubmissionImage(imageDataUrl) {
     throw error;
   }
 
-  return Buffer.from(
-    imageDataUrl.replace('data:image/png;base64,', ''),
-    'base64',
-  );
+  const base64Data = imageDataUrl.replace('data:image/png;base64,', '');
+  const buffer = Buffer.from(base64Data, 'base64');
+
+  // Explicit size check to prevent memory exhaustion
+  if (buffer.length > MAX_SUBMISSION_SIZE) {
+    const error = new Error('Submission too large. Maximum size is 5MB.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return buffer;
 }
 
 function parseCommissionImageDataUrl(imageDataUrl) {
@@ -361,6 +408,9 @@ async function handleAdminCommissions(req, res) {
       return;
     }
 
+    // POST - create/update commission, apply rate limiting
+    if (!assertAdminRateLimit(req, res)) return;
+
     const body = await readJsonBody(req);
     const record = await upsertCommission(body);
     sendJson(res, 200, {
@@ -378,6 +428,7 @@ async function handleAdminCommissions(req, res) {
 
 async function handleUploadCommissionImage(req, res) {
   if (!assertMethod(req, res, ['POST'])) return;
+  if (!assertAdminRateLimit(req, res)) return;
 
   noStore(res);
   const session = requireAdmin(req, res);
@@ -534,6 +585,7 @@ async function handlePublicCommissionIcon(req, res) {
 
 async function handleApproveSubmission(req, res) {
   if (!assertMethod(req, res, ['POST'])) return;
+  if (!assertAdminRateLimit(req, res)) return;
 
   noStore(res);
   const session = requireAdmin(req, res);
@@ -559,6 +611,7 @@ async function handleApproveSubmission(req, res) {
 
 async function handleDeleteCommission(req, res) {
   if (!assertMethod(req, res, ['POST'])) return;
+  if (!assertAdminRateLimit(req, res)) return;
 
   noStore(res);
   const session = requireAdmin(req, res);
@@ -587,6 +640,7 @@ async function handleDeleteCommission(req, res) {
 
 async function handleRejectSubmission(req, res) {
   if (!assertMethod(req, res, ['POST'])) return;
+  if (!assertAdminRateLimit(req, res)) return;
 
   noStore(res);
   const session = requireAdmin(req, res);
@@ -615,6 +669,7 @@ async function handleRejectSubmission(req, res) {
 
 async function handleAdminLogout(req, res) {
   if (!assertMethod(req, res, ['POST'])) return;
+  if (!assertAdminRateLimit(req, res)) return;
 
   clearAdminSession(res);
   sendJson(res, 200, { ok: true });

@@ -22,6 +22,16 @@ function createSignature(payload) {
     .digest('base64url');
 }
 
+function getSecureFlag() {
+  // Explicitly control Secure flag through environment variable
+  // Default to true in production, can be overridden
+  const value = process.env.COOKIE_SECURE;
+  if (typeof value === 'string') {
+    return value.toLowerCase() === 'true';
+  }
+  return process.env.NODE_ENV === 'production';
+}
+
 function serializeCookie(name, value, options = {}) {
   const parts = [`${name}=${value}`];
   parts.push(`Path=${options.path || '/'}`);
@@ -31,8 +41,8 @@ function serializeCookie(name, value, options = {}) {
   if (options.httpOnly !== false) {
     parts.push('HttpOnly');
   }
-  parts.push(`SameSite=${options.sameSite || 'Lax'}`);
-  if (options.secure ?? process.env.NODE_ENV === 'production') {
+  parts.push(`SameSite=${options.sameSite || 'Strict'}`);
+  if (options.secure ?? getSecureFlag()) {
     parts.push('Secure');
   }
   return parts.join('; ');
