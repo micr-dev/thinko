@@ -8,10 +8,12 @@ It started from the `winXP` React desktop project, but this repo now contains th
 
 - Windows XP-style desktop, windows, taskbar, and Start menu
 - Custom desktop apps like `Paint`, `Winamp`, `My Pictures`, and `My Computer`
-- Embedded game launchers for local browser-playable game builds
+- 13 embedded browser-playable games (Touhou 1-5, Quake 3, ULTRAKILL, Syobon Action, Super Monkey Ball Jr., Portal 2D, Vampire Survivors, IWBTG, Nyan Cat)
 - Paint submission flow with manual moderation
 - Admin page for reviewing drawings and publishing commissions
+- Mobile-first alternative experience (About, Drawings, Commissions, Paint sections) auto-triggered at <=820px viewport width; append `?desktop=1` to force the desktop experience on mobile
 - Vercel-backed API routes for submissions, moderation, commissions, and image serving
+- `demo/demo.gif` — animated preview of the desktop experience
 
 ## Live URLs
 
@@ -45,8 +47,9 @@ yarn start
 
 That starts:
 
-- CRA dev server on `http://0.0.0.0:4003` when `HOST` and `PORT` are set externally
+- CRA dev server on `http://localhost:3000` (react-scripts default; override with `PORT` env var)
 - local API server on `http://127.0.0.1:4748`
+- optional local agentation proxy on `http://127.0.0.1:4747` (see `AGENTATION_PROXY_TARGET` below)
 
 Useful scripts:
 
@@ -72,6 +75,7 @@ GITHUB_CLIENT_SECRET
 GITHUB_ADMIN_LOGIN
 NTFY_TOPIC
 NTFY_BASE_URL
+AGENTATION_PROXY_TARGET
 ```
 
 Notes:
@@ -79,8 +83,18 @@ Notes:
 - `BLOB_READ_WRITE_TOKEN` is required for drawings and commissions storage.
 - `GITHUB_*` values are required for `/admin/drawings`.
 - `NTFY_*` is optional but used for new drawing notifications.
+- `AGENTATION_PROXY_TARGET` routes `/agentation` traffic to a local agentation service (default: `http://127.0.0.1:4747`).
 
-## Paint submission flow
+## Admin page
+
+The admin page (`/admin/drawings`) provides:
+
+- Pending drawing submissions queue with approve/reject actions
+- Commission draft management (commission-drafts system stored in `src/admin/commission-drafts.json` and `public/custom/commission-drafts/`)
+- Image uploads to catbox.moe for commission artwork
+- Commission icon placement on the desktop grid via `WinXP/apps/commission-placement.json`
+
+Auth is via GitHub OAuth (configured with `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and `GITHUB_ADMIN_LOGIN`).
 
 Users can draw inside the XP Paint app and submit artwork for review.
 
@@ -95,8 +109,12 @@ Current behavior:
 Key paths:
 
 - [src/App.js](src/App.js) - route split between desktop, admin, and layout debug
+- [src/app-mode.js](src/app-mode.js) - mobile/desktop experience switcher (`MOBILE_BREAKPOINT = 820`)
+- [src/mobile-site/](src/mobile-site/) - mobile-first experience (About, Drawings, Commissions, Paint)
 - [src/WinXP](src/WinXP) - desktop shell and apps
 - [src/admin/DrawingsAdminPage.js](src/admin/DrawingsAdminPage.js) - admin moderation and commissions UI
+- [src/admin/commission-drafts.json](src/admin/commission-drafts.json) - commission draft records
+- [public/custom/commission-drafts/](public/custom/commission-drafts/) - commission artwork assets
 - [api](api) - Vercel API handlers
 - [server/index.js](server/index.js) - local Express API for development
 - [public/custom](public/custom) - custom game, media, and desktop asset payloads
@@ -112,6 +130,8 @@ Current deployment model:
 - single Vercel API entrypoint in [api/index.js](api/index.js)
 - Vercel Blob for image storage
 - GitHub OAuth for admin login
+
+The desktop shell also includes Tauri integration code (detected via `window.__TAURI__` / `window.__TAURI_INTERNALS__`) for potential future desktop builds, though the primary target is the Vercel web deployment.
 
 ## Notes
 
