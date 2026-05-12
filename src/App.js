@@ -1,29 +1,11 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 
 import { getBootExperience } from './app-mode';
+import RootSkeleton from './RootSkeleton';
 
 const DrawingsAdminPage = lazy(() => import('./admin/DrawingsAdminPage'));
 const MobileSite = lazy(() => import('./mobile-site/index'));
 const WinXP = lazy(() => import('WinXP'));
-
-function RootLoadingScreen() {
-  return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#245edb',
-        color: '#fff',
-        fontFamily: '"Trebuchet MS", sans-serif',
-        fontSize: '14px',
-      }}
-    >
-      Loading thinko...
-    </div>
-  );
-}
 
 const App = () => {
   const isAdminRoute = window.location.pathname.startsWith('/admin/drawings');
@@ -48,7 +30,7 @@ const App = () => {
 
   if (isAdminRoute) {
     return (
-      <Suspense fallback={<RootLoadingScreen />}>
+      <Suspense fallback={<RootSkeleton />}>
         <DrawingsAdminPage />
       </Suspense>
     );
@@ -56,14 +38,14 @@ const App = () => {
 
   if (bootExperience === 'mobile') {
     return (
-      <Suspense fallback={<RootLoadingScreen />}>
+      <Suspense fallback={<RootSkeleton />}>
         <MobileSite />
       </Suspense>
     );
   }
 
   return (
-    <Suspense fallback={<RootLoadingScreen />}>
+    <Suspense fallback={<RootSkeleton />}>
       <WinXP enableLayoutDebug={isLayoutRoute} />
     </Suspense>
   );
