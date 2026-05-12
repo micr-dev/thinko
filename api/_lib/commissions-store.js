@@ -126,9 +126,16 @@ function normalizeRemoteImageUrl(value) {
     return '';
   }
 
+  const trimmed = value.trim();
+
+  // Allow relative paths (self-hosted assets)
+  if (trimmed.startsWith('/')) {
+    return trimmed;
+  }
+
   let parsedUrl;
   try {
-    parsedUrl = new URL(value.trim());
+    parsedUrl = new URL(trimmed);
   } catch (error) {
     const invalidUrlError = new Error('Commission image URL is invalid');
     invalidUrlError.statusCode = 400;
@@ -383,7 +390,7 @@ function buildPublicCommission(record) {
   const publicImageUrl =
     record.imageUrl ||
     `/api/commissions/image?id=${encodeURIComponent(record.id)}`;
-  return {
+  const result = {
     id: record.id,
     artistName: record.artistName,
     artistLink: record.artistLink,
@@ -398,6 +405,10 @@ function buildPublicCommission(record) {
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };
+  if (Array.isArray(record.imageVariants) && record.imageVariants.length) {
+    result.imageVariants = record.imageVariants;
+  }
+  return result;
 }
 
 async function getPublicCommissions() {
@@ -455,10 +466,16 @@ async function writeCommissionIconAsset(id, buffer) {
 
 async function loadCommissionSourceBuffer(record) {
   if (record.imageUrl) {
-    const response = await fetch(record.imageUrl, { cache: 'no-store' });
+    let fetchUrl = record.imageUrl;
+    if (fetchUrl.startsWith('/')) {
+      const baseUrl =
+        process.env.APP_BASE_URL || `https://${process.env.VERCEL_URL}`;
+      fetchUrl = `${baseUrl.replace(/\/$/, '')}${fetchUrl}`;
+    }
+    const response = await fetch(fetchUrl, { cache: 'no-store' });
 
     if (!response.ok) {
-      const error = new Error('Failed to fetch commission image from Catbox');
+      const error = new Error('Failed to fetch commission image');
       error.statusCode = 400;
       throw error;
     }
@@ -511,10 +528,16 @@ async function ensureCommissionIcons(entries) {
 async function loadCommissionImage(input, existing) {
   if (input.imageUrl) {
     const imageUrl = normalizeRemoteImageUrl(input.imageUrl);
-    const response = await fetch(imageUrl);
+    let fetchUrl = imageUrl;
+    if (fetchUrl.startsWith('/')) {
+      const baseUrl =
+        process.env.APP_BASE_URL || `https://${process.env.VERCEL_URL}`;
+      fetchUrl = `${baseUrl.replace(/\/$/, '')}${fetchUrl}`;
+    }
+    const response = await fetch(fetchUrl);
 
     if (!response.ok) {
-      const error = new Error('Failed to fetch commission image from Catbox');
+      const error = new Error('Failed to fetch commission image');
       error.statusCode = 400;
       throw error;
     }
