@@ -7,12 +7,20 @@ const DrawingsAdminPage = lazy(() => import('./admin/DrawingsAdminPage'));
 const MobileSite = lazy(() => import('./mobile-site/index'));
 const WinXP = lazy(() => import('WinXP'));
 
+const BOOT_DURATION = 3000;
+
 const App = () => {
   const isAdminRoute = window.location.pathname.startsWith('/admin/drawings');
   const isLayoutRoute = window.location.pathname.startsWith('/layout');
   const [bootExperience] = useState(() =>
     getBootExperience(window.location, window.innerWidth),
   );
+  const [booting, setBooting] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setBooting(false), BOOT_DURATION);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (isAdminRoute) {
@@ -27,6 +35,10 @@ const App = () => {
 
     document.title = 'thinko';
   }, [isAdminRoute, isLayoutRoute]);
+
+  if (booting) {
+    return <XPBootScreen />;
+  }
 
   if (isAdminRoute) {
     return (

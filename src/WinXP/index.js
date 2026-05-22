@@ -40,6 +40,46 @@ import Icons from './Icons';
 import { playStartupSoundOnce, playXpSound } from './xp-sounds';
 import { DashedBox } from 'components';
 
+import COMMISSION_RANDOM_AREA from './apps/commission-placement.json';
+
+const COMMISSION_ROWS_PER_COLUMN =
+  Number(COMMISSION_RANDOM_AREA.rowsPerColumn) || 11;
+const COMMISSION_RANDOM_START_ROW =
+  Number(COMMISSION_RANDOM_AREA.randomArea?.startRow) || 1;
+const COMMISSION_RANDOM_END_ROW =
+  Number(COMMISSION_RANDOM_AREA.randomArea?.endRow) || 8;
+const COMMISSION_RANDOM_START_COLUMN =
+  Number(COMMISSION_RANDOM_AREA.randomArea?.startColumn) || 4;
+const COMMISSION_RANDOM_END_COLUMN =
+  Number(COMMISSION_RANDOM_AREA.randomArea?.endColumn) || 16;
+
+function shuffleCommissionGridIndexes(icons) {
+  const indexes = [];
+  for (
+    let column = COMMISSION_RANDOM_START_COLUMN;
+    column <= COMMISSION_RANDOM_END_COLUMN;
+    column += 1
+  ) {
+    for (
+      let row = COMMISSION_RANDOM_START_ROW;
+      row <= COMMISSION_RANDOM_END_ROW;
+      row += 1
+    ) {
+      indexes.push((column - 1) * COMMISSION_ROWS_PER_COLUMN + (row - 1));
+    }
+  }
+
+  for (let i = indexes.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indexes[i], indexes[j]] = [indexes[j], indexes[i]];
+  }
+
+  return icons.map((icon, i) => ({
+    ...icon,
+    gridIndex: indexes[i % indexes.length],
+  }));
+}
+
 const ICON_COLUMN_WIDTH = 96;
 const ICON_COLUMN_GAP = 1;
 const ICON_GRID_LEFT = 4;
@@ -516,8 +556,8 @@ function WinXP({ enableLayoutDebug = false }) {
         const payload = await response.json();
         if (!isMounted) return;
 
-        const nextCommissionIcons = (payload.commissions || []).map(
-          buildCommissionDesktopIcon,
+        const nextCommissionIcons = shuffleCommissionGridIndexes(
+          (payload.commissions || []).map(buildCommissionDesktopIcon),
         );
         setCommissionIcons(nextCommissionIcons);
         dispatch({
