@@ -7,7 +7,7 @@ const DrawingsAdminPage = lazy(() => import('./admin/DrawingsAdminPage'));
 const MobileSite = lazy(() => import('./mobile-site/index'));
 const WinXP = lazy(() => import('WinXP'));
 
-const BOOT_DURATION = 3000;
+const BOOT_DURATION = 2000;
 
 const App = () => {
   const isAdminRoute = window.location.pathname.startsWith('/admin/drawings');

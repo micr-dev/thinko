@@ -1,146 +1,189 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import styled, { keyframes } from 'styled-components';
 
+/* Progress bar blocks slide from left to right, wrapping around */
 const blockSlide = keyframes`
   0%   { transform: translateX(0); }
-  100% { transform: translateX(240px); }
+  100% { transform: translateX(calc(100% + 40px)); }
 `;
 
+/* Subtle fade-in on mount */
 const fadeIn = keyframes`
   0%   { opacity: 0; }
   100% { opacity: 1; }
 `;
 
 const Wrapper = styled.div`
-  width: 100%;
+  width: 100vw;
   height: 100dvh;
   background-color: #000;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  animation: ${fadeIn} 0.3s ease;
+  animation: ${fadeIn} 0.2s ease;
   user-select: none;
   overflow: hidden;
+  cursor: default;
+  font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
 `;
 
-const ContentWrapper = styled.div`
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 28vh 0 10vh;
-  box-sizing: border-box;
+const Center = styled.div`
+  width: 50%;
+  max-width: 380px;
+  text-align: center;
+  line-height: 1;
 `;
 
-const LogoArea = styled.div`
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 28px;
+const LogoImg = styled.img`
+  width: 70%;
+  display: block;
+  margin: 0 auto -28px;
 `;
 
-const XPLogo = styled.img`
-  width: 220px;
-  height: auto;
+const MicrosoftText = styled.span`
+  font-size: 18px;
+  color: #fff;
 `;
 
-const ProgressBarTrack = styled.div`
-  width: 200px;
-  height: 18px;
-  border: 1px solid #b1b1b3;
-  border-radius: 5px;
-  display: flex;
-  align-items: center;
-  padding: 2px 4px;
+const Reg = styled.sup`
+  font-size: 9px;
+  font-weight: bold;
+`;
+
+const WindowsText = styled.span`
+  font-size: 44px;
+  font-weight: bold;
+  color: #fff;
+  display: inline;
+`;
+
+const XPText = styled.span`
+  font-size: 44px;
+  font-weight: bold;
+  color: #ff3c00;
+  display: inline;
+  margin-left: 6px;
+  letter-spacing: -1px;
+`;
+
+const LoaderTrack = styled.div`
+  position: relative;
+  width: 70%;
+  max-height: 20px;
+  height: 3vh;
+  padding: 3px 2px;
+  margin: 10% auto 5%;
+  border: 1px solid #999;
+  border-radius: 4px;
   overflow: hidden;
 `;
 
 const BlockContainer = styled.div`
   display: flex;
-  gap: 4px;
-  animation: ${blockSlide} 2s ease-in-out infinite;
+  gap: 2px;
+  animation: ${blockSlide} 1.6s ease-in-out infinite;
 `;
 
-const ProgressBlock = styled.div`
-  width: 12px;
-  height: 12px;
-  background-color: #2c38b9;
-  border-radius: 2px;
-  position: relative;
-  overflow: hidden;
+const Block = styled.div`
+  width: 8px;
+  height: calc(3vh - 6px);
+  max-height: 12px;
+  background: linear-gradient(
+    #7b9cf1 0%,
+    #708cf1 40%,
+    #3355cc 70%,
+    #2838c7 100%
+  );
   flex-shrink: 0;
 `;
 
-const BlockHighlight = styled.div`
-  height: 4px;
-  background-color: #7f9ffe;
+const BottomRow = styled.div`
   position: absolute;
-  top: 18%;
+  bottom: 12.5%;
   left: 0;
   right: 0;
-`;
-
-const CopyrightsWrapper = styled.div`
-  width: 100%;
+  padding: 0 7.5%;
   display: flex;
-  justify-content: center;
-  padding: 32px 8%;
+  justify-content: space-between;
+  align-items: center;
   box-sizing: border-box;
 `;
 
-const CopyrightText = styled.span`
-  color: #d1d1d1;
-  font-family: Arial, Helvetica, sans-serif;
+const Copyright = styled.span`
+  color: #bbb;
   font-size: 11px;
-  letter-spacing: -0.3px;
+  font-family: Arial, sans-serif;
 `;
 
-const XP_LOGO_SVG = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 90" width="300" height="90">
+const MicrosoftWatermark = styled.span`
+  color: #bbb;
+  font-size: 11px;
+  font-family: Arial, sans-serif;
+  font-weight: bold;
+  font-style: italic;
+`;
+
+/* Minimal inline SVG of the Windows XP flag — just the 4 color squares */
+const FLAG_SVG = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="200">
   <defs>
-    <linearGradient id="gR" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#EE3B3B"/><stop offset="100%" stop-color="#CA1414"/></linearGradient>
-    <linearGradient id="gG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4BC332"/><stop offset="100%" stop-color="#299A0D"/></linearGradient>
-    <linearGradient id="gB" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#55A1EE"/><stop offset="100%" stop-color="#2268D3"/></linearGradient>
-    <linearGradient id="gY" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFB816"/><stop offset="100%" stop-color="#F08A00"/></linearGradient>
+    <linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FF5A5A"/><stop offset="100%" stop-color="#CC2222"/></linearGradient>
+    <linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5ED64A"/><stop offset="100%" stop-color="#2D9A10"/></linearGradient>
+    <linearGradient id="c" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5A9AFF"/><stop offset="100%" stop-color="#2244CC"/></linearGradient>
+    <linearGradient id="d" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFB830"/><stop offset="100%" stop-color="#EE8800"/></linearGradient>
   </defs>
-  <!-- Flag -->
-  <g transform="translate(110, 2)">
-    <rect width="22" height="22" rx="3" fill="url(#gR)"/>
-    <rect x="26" width="22" height="22" rx="3" fill="url(#gG)"/>
-    <rect y="26" width="22" height="22" rx="3" fill="url(#gB)"/>
-    <rect x="26" y="26" width="22" height="22" rx="3" fill="url(#gY)"/>
-  </g>
-  <!-- Microsoft text -->
-  <text x="150" y="70" text-anchor="middle" font-family="Frutiger, 'Segoe UI', Arial, Helvetica, sans-serif" font-size="15" fill="white">Microsoft</text>
-  <!-- Windows XP text -->
-  <text x="150" y="88" text-anchor="middle" font-family="Frutiger, 'Segoe UI', Arial, Helvetica, sans-serif" fill="#8AAAD4">
-    <tspan font-size="12">Windows</tspan>
-    <tspan font-weight="bold" font-size="15" dx="4" fill="white">XP</tspan>
-  </text>
+  <rect x="1" y="1" width="36" height="36" rx="3" fill="url(#a)"/>
+  <rect x="43" y="1" width="36" height="36" rx="3" fill="url(#b)"/>
+  <rect x="1" y="43" width="36" height="36" rx="3" fill="url(#c)"/>
+  <rect x="43" y="43" width="36" height="36" rx="3" fill="url(#d)"/>
 </svg>`)}`;
 
 function XPBootScreen() {
+  const loaderRef = useRef(null);
+
+  useEffect(() => {
+    if (!loaderRef.current) return;
+    const container = loaderRef.current;
+    const width = container.offsetWidth;
+
+    let pos = 0;
+    const speed = 1;
+    const interval = setInterval(() => {
+      pos += speed;
+      if (pos >= width) pos = 0;
+      if (container.firstElementChild) {
+        container.firstElementChild.style.transform = `translateX(${pos}px)`;
+      }
+    }, 10);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <Wrapper>
-      <ContentWrapper>
-        <LogoArea>
-          <XPLogo src={XP_LOGO_SVG} alt="" />
-          <ProgressBarTrack>
-            <BlockContainer>
-              {[0, 1, 2].map(i => (
-                <ProgressBlock key={i}>
-                  <BlockHighlight />
-                </ProgressBlock>
-              ))}
-            </BlockContainer>
-          </ProgressBarTrack>
-        </LogoArea>
-        <CopyrightsWrapper>
-          <CopyrightText>Copyrights &copy; Microsoft Corporation</CopyrightText>
-        </CopyrightsWrapper>
-      </ContentWrapper>
+      <Center>
+        <LogoImg src={FLAG_SVG} alt="" />
+        <div>
+          <MicrosoftText>
+            Microsoft<Reg>&reg;</Reg>
+          </MicrosoftText>
+        </div>
+        <div>
+          <WindowsText>Windows</WindowsText>
+          <XPText>xp</XPText>
+        </div>
+        <LoaderTrack ref={loaderRef}>
+          <BlockContainer>
+            <Block />
+            <Block />
+            <Block />
+          </BlockContainer>
+        </LoaderTrack>
+      </Center>
+      <BottomRow>
+        <Copyright>Copyright &copy; Microsoft Corporation</Copyright>
+        <MicrosoftWatermark>Microsoft</MicrosoftWatermark>
+      </BottomRow>
     </Wrapper>
   );
 }
