@@ -1,9 +1,35 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 
-import DrawingsAdminPage from './admin/DrawingsAdminPage';
-import MobileSite from './mobile-site/index';
 import { getBootExperience } from './app-mode';
+import XPBootScreen from './XPBootScreen';
+
+/* WinXP is imported eagerly so it mounts and fetches commissions
+   while the boot screen is still visible. */
 import WinXP from 'WinXP';
+
+const DrawingsAdminPage = lazy(() => import('./admin/DrawingsAdminPage'));
+const MobileSite = lazy(() => import('./mobile-site/index'));
+
+/* Pre-fetch commission full-size images into the browser cache
+   so popups open instantly after the preloader dismisses. */
+function prefetchCommissionImages() {
+  fetch('/api/commissions/public', { cache: 'no-store' })
+    .then(r => r.json())
+    .then(data => {
+      (data.commissions || []).forEach(c => {
+        const urls = [c.imageUrl];
+        if (Array.isArray(c.imageVariants)) {
+          urls.push(...c.imageVariants);
+        }
+        urls.forEach(url => {
+          if (!url) return;
+          const img = new Image();
+          img.src = url;
+        });
+      });
+    })
+    .catch(() => {});
+}
 
 const App = () => {
   const isAdminRoute = window.location.pathname.startsWith('/admin/drawings');
@@ -11,6 +37,13 @@ const App = () => {
   const [bootExperience] = useState(() =>
     getBootExperience(window.location, window.innerWidth),
   );
+  const [booting, setBooting] = useState(true);
+
+  const handleBootComplete = useCallback(() => setBooting(false), []);
+
+  useEffect(() => {
+    prefetchCommissionImages();
+  }, []);
 
   useEffect(() => {
     if (isAdminRoute) {
@@ -27,14 +60,38 @@ const App = () => {
   }, [isAdminRoute, isLayoutRoute]);
 
   if (isAdminRoute) {
-    return <DrawingsAdminPage />;
+    return (
+      <Suspense fallback={<XPBootScreen />}>
+        <DrawingsAdminPage />
+      </Suspense>
+    );
   }
 
   if (bootExperience === 'mobile') {
-    return <MobileSite />;
+    return (
+      <Suspense fallback={<XPBootScreen />}>
+        <MobileSite />
+      </Suspense>
+    );
   }
 
-  return <WinXP enableLayoutDebug={isLayoutRoute} />;
+  /* Render desktop immediately behind the boot screen overlay so
+     images and API data load during the preloader animation.
+     visibility:hidden prevents the flash while keeping layout
+     intact so images can still load. */
+  return (
+    <>
+      {booting && <XPBootScreen onComplete={handleBootComplete} />}
+      <div
+        style={{
+          visibility: booting ? 'hidden' : 'visible',
+          minHeight: '100dvh',
+        }}
+      >
+        <WinXP enableLayoutDebug={isLayoutRoute} />
+      </div>
+    </>
+  );
 };
 
 export default App;

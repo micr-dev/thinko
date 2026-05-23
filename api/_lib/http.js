@@ -14,10 +14,16 @@ function getHeader(req, name) {
   return Array.isArray(value) ? value[0] : value || '';
 }
 
+const { getTrustProxy } = require('./config');
+
 function getClientIp(req) {
-  const forwardedFor = getHeader(req, 'x-forwarded-for');
-  if (forwardedFor) {
-    return forwardedFor.split(',')[0].trim();
+  // Only trust X-Forwarded-For when explicitly configured to do so
+  // Otherwise, use the direct socket IP to prevent spoofing
+  if (getTrustProxy()) {
+    const forwardedFor = getHeader(req, 'x-forwarded-for');
+    if (forwardedFor) {
+      return forwardedFor.split(',')[0].trim();
+    }
   }
 
   return (

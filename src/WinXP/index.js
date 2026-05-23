@@ -39,394 +39,47 @@ import Windows from './Windows';
 import Icons from './Icons';
 import { playStartupSoundOnce, playXpSound } from './xp-sounds';
 import { DashedBox } from 'components';
+import commissionPlacement from './apps/commission-placement.json';
 
-const ICON_COLUMN_WIDTH = 96;
-const ICON_COLUMN_GAP = 1;
-const ICON_GRID_LEFT = 4;
-const ICON_GRID_RIGHT = 20;
-const ICON_ROW_HEIGHT = 83;
-const ICON_ROW_GAP = 8;
-const ICON_GRID_TOP_WEB = 8;
-const ICON_GRID_TOP_TAURI = 36;
-const FOOTER_HEIGHT = 30;
-const ICON_GRID_BOTTOM = 36;
-const ROWS_PER_COLUMN = 11;
-const WALLPAPER_ROTATION_MIN_MS = 180000;
-const WALLPAPER_ROTATION_MAX_MS = 300000;
-const WALLPAPER_FADE_MS = 650;
-const DESKTOP_CONTEXT_MENU_WIDTH = 180;
-const DESKTOP_CONTEXT_MENU_HEIGHT = 58;
+const COMMISSION_ROWS_PER_COLUMN =
+  Number(commissionPlacement.rowsPerColumn) || 11;
+const COMMISSION_RANDOM_AREA = commissionPlacement.randomArea || {};
+const COMMISSION_RANDOM_START_ROW =
+  Number(COMMISSION_RANDOM_AREA.startRow) || 1;
+const COMMISSION_RANDOM_END_ROW = Number(COMMISSION_RANDOM_AREA.endRow) || 8;
+const COMMISSION_RANDOM_START_COLUMN =
+  Number(COMMISSION_RANDOM_AREA.startColumn) || 4;
+const COMMISSION_RANDOM_END_COLUMN =
+  Number(COMMISSION_RANDOM_AREA.endColumn) || 16;
 
-function getRandomRotationDelay() {
-  return (
-    WALLPAPER_ROTATION_MIN_MS +
-    Math.floor(
-      Math.random() *
-        (WALLPAPER_ROTATION_MAX_MS - WALLPAPER_ROTATION_MIN_MS + 1),
-    )
-  );
-}
-
-function createWallpaperQueue(currentId) {
-  const queue = [...ROTATING_WALLPAPERS];
-
-  for (let index = queue.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [queue[index], queue[swapIndex]] = [queue[swapIndex], queue[index]];
-  }
-
-  if (queue.length > 1 && queue[0].id === currentId) {
-    [queue[0], queue[queue.length - 1]] = [queue[queue.length - 1], queue[0]];
-  }
-
-  return queue;
-}
-
-function clampDesktopContextMenuPosition(clientX, clientY) {
-  return {
-    x: Math.max(
-      4,
-      Math.min(clientX, window.innerWidth - DESKTOP_CONTEXT_MENU_WIDTH - 8),
-    ),
-    y: Math.max(
-      4,
-      Math.min(
-        clientY,
-        window.innerHeight - FOOTER_HEIGHT - DESKTOP_CONTEXT_MENU_HEIGHT - 8,
-      ),
-    ),
-  };
-}
-
-function normalizeIcons(icons) {
-  const usedGridIndexes = new Set(
-    icons
-      .filter(icon => Number.isFinite(icon.gridIndex))
-      .map(icon => icon.gridIndex),
-  );
-  let nextGridIndex = 0;
-
-  const normalized = icons.map(icon => {
-    if (Number.isFinite(icon.gridIndex)) return { ...icon };
-    while (usedGridIndexes.has(nextGridIndex)) {
-      nextGridIndex += 1;
-    }
-    const gridIndex = nextGridIndex;
-    usedGridIndexes.add(gridIndex);
-    nextGridIndex += 1;
-    return {
-      ...icon,
-      gridIndex,
-    };
-  });
-
-  return normalized.sort(
-    (left, right) => left.gridIndex - right.gridIndex || left.id - right.id,
-  );
-}
-
-function moveIconToGridIndex(icons, sourceId, targetIndex) {
-  const normalized = normalizeIcons(icons);
-  const sourceIcon = normalized.find(icon => icon.id === sourceId);
-  if (!sourceIcon) return normalized;
-
-  const boundedIndex = Math.max(0, targetIndex);
-  if (sourceIcon.gridIndex === boundedIndex) return normalized;
-
-  const occupantIcon = normalized.find(
-    icon => icon.id !== sourceId && icon.gridIndex === boundedIndex,
-  );
-
-  return normalized
-    .map(icon => {
-      if (icon.id === sourceId) {
-        return {
-          ...icon,
-          gridIndex: boundedIndex,
-        };
-      }
-      if (occupantIcon && icon.id === occupantIcon.id) {
-        return {
-          ...icon,
-          gridIndex: sourceIcon.gridIndex,
-        };
-      }
-      return icon;
-    })
-    .sort(
-      (left, right) => left.gridIndex - right.gridIndex || left.id - right.id,
-    );
-}
-
-function buildLayoutExport(icons, rowsPerColumn) {
-  return JSON.stringify(
-    normalizeIcons(icons).map(icon => ({
-      id: icon.id,
-      title: icon.title,
-      appKey: icon.appKey || null,
-      gridIndex: icon.gridIndex,
-      row: (icon.gridIndex % rowsPerColumn) + 1,
-      column: Math.floor(icon.gridIndex / rowsPerColumn) + 1,
-    })),
-    null,
-    2,
-  );
-}
-
-function mergeCommissionIcons(icons, commissionIcons) {
-  const staticIcons = icons.filter(icon => !icon.isCommission);
-  return normalizeIcons([...staticIcons, ...commissionIcons]);
-}
-
-function getResponsiveDesktopMetrics(width, height) {
-  const isTauri =
-    typeof window !== 'undefined' &&
-    (window.__TAURI__ || window.__TAURI_INTERNALS__);
-  const gridTop = isTauri ? ICON_GRID_TOP_TAURI : ICON_GRID_TOP_WEB;
-  const usableWidth = Math.max(ICON_COLUMN_WIDTH, width - ICON_GRID_LEFT);
-  const usableHeight = Math.max(
-    ICON_ROW_HEIGHT,
-    height - FOOTER_HEIGHT - gridTop,
-  );
-  const safeWidth = Math.max(ICON_COLUMN_WIDTH, usableWidth - ICON_GRID_RIGHT);
-  const safeHeight = Math.max(ICON_ROW_HEIGHT, usableHeight - ICON_GRID_BOTTOM);
-
-  return {
-    columns: Math.max(
-      1,
-      Math.floor(
-        (safeWidth + ICON_COLUMN_GAP) / (ICON_COLUMN_WIDTH + ICON_COLUMN_GAP),
-      ),
-    ),
-    rows: Math.max(
-      1,
-      Math.floor(
-        (safeHeight + ICON_ROW_GAP) / (ICON_ROW_HEIGHT + ICON_ROW_GAP),
-      ),
-    ),
-  };
-}
-
-function getGridPosition(gridIndex, rowsPerColumn) {
-  return {
-    row: gridIndex % rowsPerColumn,
-    column: Math.floor(gridIndex / rowsPerColumn),
-  };
-}
-
-function findNearestFreeRow(preferredRow, rows, occupiedRows) {
-  for (let row = preferredRow; row < rows; row += 1) {
-    if (!occupiedRows.has(row)) {
-      return row;
+function shuffleCommissionGridIndexes(icons) {
+  const indexes = [];
+  for (
+    let column = COMMISSION_RANDOM_START_COLUMN;
+    column <= COMMISSION_RANDOM_END_COLUMN;
+    column += 1
+  ) {
+    for (
+      let row = COMMISSION_RANDOM_START_ROW;
+      row <= COMMISSION_RANDOM_END_ROW;
+      row += 1
+    ) {
+      indexes.push((column - 1) * COMMISSION_ROWS_PER_COLUMN + (row - 1));
     }
   }
 
-  for (let row = preferredRow - 1; row >= 0; row -= 1) {
-    if (!occupiedRows.has(row)) {
-      return row;
-    }
+  // Fisher-Yates shuffle the available positions
+  for (let i = indexes.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indexes[i], indexes[j]] = [indexes[j], indexes[i]];
   }
 
-  return Math.max(0, rows - 1);
+  return icons.map((icon, i) => ({
+    ...icon,
+    gridIndex: indexes[i % indexes.length],
+  }));
 }
 
-function createResponsiveIconLayout(icons, rows) {
-  const normalizedIcons = normalizeIcons(icons);
-  const iconsByColumn = normalizedIcons.reduce((map, icon) => {
-    const { column } = getGridPosition(icon.gridIndex, ROWS_PER_COLUMN);
-    const columnIcons = map.get(column) || [];
-    columnIcons.push(icon);
-    map.set(column, columnIcons);
-    return map;
-  }, new Map());
-  const responsiveIcons = [];
-
-  [...iconsByColumn.entries()]
-    .sort((left, right) => left[0] - right[0])
-    .forEach(([column, columnIcons]) => {
-      const occupiedRows = new Set();
-
-      columnIcons
-        .sort((left, right) => left.gridIndex - right.gridIndex)
-        .forEach(icon => {
-          const { row } = getGridPosition(icon.gridIndex, ROWS_PER_COLUMN);
-          const projectedRow =
-            ROWS_PER_COLUMN > 1 && rows > 1
-              ? Math.round((row * (rows - 1)) / (ROWS_PER_COLUMN - 1))
-              : 0;
-          const responsiveRow = findNearestFreeRow(
-            projectedRow,
-            rows,
-            occupiedRows,
-          );
-
-          occupiedRows.add(responsiveRow);
-          responsiveIcons.push({
-            ...icon,
-            gridIndex: column * rows + responsiveRow,
-          });
-        });
-    });
-
-  return responsiveIcons.sort(
-    (left, right) => left.gridIndex - right.gridIndex || left.id - right.id,
-  );
-}
-
-const initState = {
-  apps: defaultAppState,
-  nextAppID: defaultAppState.length,
-  nextZIndex: defaultAppState.length,
-  focusing: FOCUSING.WINDOW,
-  icons: normalizeIcons(defaultIconState),
-  selecting: false,
-  powerState: POWER_STATE.START,
-};
-const reducer = (state, action = { type: '' }) => {
-  switch (action.type) {
-    case ADD_APP:
-      const app = state.apps.find(
-        _app => _app.component === action.payload.component,
-      );
-      if (action.payload.multiInstance || !app) {
-        return {
-          ...state,
-          apps: [
-            ...state.apps,
-            {
-              ...action.payload,
-              id: state.nextAppID,
-              zIndex: state.nextZIndex,
-            },
-          ],
-          nextAppID: state.nextAppID + 1,
-          nextZIndex: state.nextZIndex + 1,
-          focusing: FOCUSING.WINDOW,
-        };
-      }
-      const apps = state.apps.map(app =>
-        app.component === action.payload.component
-          ? { ...app, zIndex: state.nextZIndex, minimized: false }
-          : app,
-      );
-      return {
-        ...state,
-        apps,
-        nextZIndex: state.nextZIndex + 1,
-        focusing: FOCUSING.WINDOW,
-      };
-    case DEL_APP:
-      if (state.focusing !== FOCUSING.WINDOW) return state;
-      return {
-        ...state,
-        apps: state.apps.filter(app => app.id !== action.payload),
-        focusing:
-          state.apps.length > 1
-            ? FOCUSING.WINDOW
-            : state.icons.find(icon => icon.isFocus)
-            ? FOCUSING.ICON
-            : FOCUSING.DESKTOP,
-      };
-    case FOCUS_APP: {
-      const apps = state.apps.map(app =>
-        app.id === action.payload
-          ? { ...app, zIndex: state.nextZIndex, minimized: false }
-          : app,
-      );
-      return {
-        ...state,
-        apps,
-        nextZIndex: state.nextZIndex + 1,
-        focusing: FOCUSING.WINDOW,
-      };
-    }
-    case MINIMIZE_APP: {
-      if (state.focusing !== FOCUSING.WINDOW) return state;
-      const apps = state.apps.map(app =>
-        app.id === action.payload ? { ...app, minimized: true } : app,
-      );
-      return {
-        ...state,
-        apps,
-        focusing: FOCUSING.WINDOW,
-      };
-    }
-    case TOGGLE_MAXIMIZE_APP: {
-      if (state.focusing !== FOCUSING.WINDOW) return state;
-      const apps = state.apps.map(app =>
-        app.id === action.payload ? { ...app, maximized: !app.maximized } : app,
-      );
-      return {
-        ...state,
-        apps,
-        focusing: FOCUSING.WINDOW,
-      };
-    }
-    case FOCUS_ICON: {
-      const icons = state.icons.map(icon => ({
-        ...icon,
-        isFocus: icon.id === action.payload,
-      }));
-      return {
-        ...state,
-        focusing: FOCUSING.ICON,
-        icons,
-      };
-    }
-    case SELECT_ICONS: {
-      const icons = state.icons.map(icon => ({
-        ...icon,
-        isFocus: action.payload.includes(icon.id),
-      }));
-      return {
-        ...state,
-        icons,
-        focusing: FOCUSING.ICON,
-      };
-    }
-    case FOCUS_DESKTOP:
-      return {
-        ...state,
-        focusing: FOCUSING.DESKTOP,
-        icons: state.icons.map(icon => ({
-          ...icon,
-          isFocus: false,
-        })),
-      };
-    case START_SELECT:
-      return {
-        ...state,
-        focusing: FOCUSING.DESKTOP,
-        icons: state.icons.map(icon => ({
-          ...icon,
-          isFocus: false,
-        })),
-        selecting: action.payload,
-      };
-    case END_SELECT:
-      return {
-        ...state,
-        selecting: null,
-      };
-    case SET_ICON_LAYOUT:
-      return {
-        ...state,
-        icons: normalizeIcons(action.payload),
-      };
-    case POWER_OFF:
-      return {
-        ...state,
-        powerState: action.payload,
-      };
-    case CANCEL_POWER_OFF:
-      return {
-        ...state,
-        powerState: POWER_STATE.START,
-      };
-    default:
-      return state;
-  }
-};
 function WinXP({ enableLayoutDebug = false }) {
   const [state, dispatch] = useReducer(reducer, initState);
   const [commissionIcons, setCommissionIcons] = useState([]);
@@ -516,8 +169,8 @@ function WinXP({ enableLayoutDebug = false }) {
         const payload = await response.json();
         if (!isMounted) return;
 
-        const nextCommissionIcons = (payload.commissions || []).map(
-          buildCommissionDesktopIcon,
+        const nextCommissionIcons = shuffleCommissionGridIndexes(
+          (payload.commissions || []).map(buildCommissionDesktopIcon),
         );
         setCommissionIcons(nextCommissionIcons);
         dispatch({

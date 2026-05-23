@@ -26,7 +26,14 @@ function createIsoStamp() {
 
 function sanitizeTitle(value) {
   const raw = typeof value === 'string' ? value.trim() : '';
-  return raw.replace(/\s+/g, ' ').slice(0, 80);
+  const sanitized = raw.replace(/\s+/g, ' ').slice(0, 80);
+  // Escape HTML entities to prevent XSS when rendered
+  return sanitized
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function defaultTitle() {
