@@ -194,10 +194,7 @@ function XPBootScreen({ onComplete }) {
             Copyrights <CopyrightStrong>&copy;</CopyrightStrong> Microsoft
             Corporation
           </Copyright>
-          <MicrosoftLogo
-            src="/boot/microsoft-logo.webp"
-            alt="Microsoft"
-          />
+          <MicrosoftLogo src="/boot/microsoft-logo.webp" alt="Microsoft" />
         </CopyrightsWrapper>
       </ContentWrapper>
     </Wrapper>
