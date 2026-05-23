@@ -1,4 +1,4 @@
-import { lazy } from 'react';
+import React, { lazy } from 'react';
 import { characterDocumentIcons } from './character-documents';
 import defaultIconGridIndexes from './default-icon-grid-indexes.json';
 import { games } from './virtual-pc/game-registry';
@@ -12,6 +12,8 @@ import paint from 'assets/windowsIcons/680(16x16).png';
 import picture from 'assets/windowsIcons/307(32x32).png';
 import recycleBinIcon from 'assets/windowsIcons/360(32x32).png';
 
+import CommissionViewer from './commission-viewer';
+
 const Minesweeper = lazy(() => import('./Minesweeper'));
 const ErrorBox = lazy(() => import('./ErrorBox'));
 const MyComputer = lazy(() => import('./MyComputer'));
@@ -21,7 +23,6 @@ const DrawingsFolder = lazy(() => import('./drawings-folder'));
 const VirtualPc = lazy(() => import('./virtual-pc'));
 const IWBTG = lazy(() => import('./iwbtg'));
 const NyanCat = lazy(() => import('./nyan-cat'));
-const CommissionViewer = lazy(() => import('./commission-viewer'));
 
 const nyanCatIcon = '/custom/nyan-cat/nyancat.png';
 const iwbtgIcon = '/custom/games/iwbtg.png';
