@@ -51,11 +51,20 @@ const App = () => {
   }
 
   /* Render desktop immediately behind the boot screen overlay so
-     images and API data load during the preloader animation. */
+     images and API data load during the preloader animation.
+     visibility:hidden prevents the flash while keeping layout
+     intact so images can still load. */
   return (
     <>
       {booting && <XPBootScreen onComplete={handleBootComplete} />}
-      <WinXP enableLayoutDebug={isLayoutRoute} />
+      <div
+        style={{
+          visibility: booting ? 'hidden' : 'visible',
+          minHeight: '100dvh',
+        }}
+      >
+        <WinXP enableLayoutDebug={isLayoutRoute} />
+      </div>
     </>
   );
 };

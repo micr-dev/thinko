@@ -38,16 +38,6 @@ const Wrapper = styled.div`
         `}
 `;
 
-const ContentWrapper = styled.div`
-  width: 100%;
-  height: 100%;
-  flex-direction: column;
-  justify-content: space-between;
-  padding-top: 229px;
-  padding-bottom: 69px;
-  display: flex;
-`;
-
 const LogoProgressbar = styled.div`
   flex-direction: column;
   justify-content: center;
@@ -101,8 +91,11 @@ const BlockHighlight = styled.div`
 `;
 
 const CopyrightsWrapper = styled.div`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   width: 100%;
-  height: auto;
   justify-content: space-between;
   align-items: center;
   padding: 32px 8%;
@@ -172,31 +165,29 @@ function XPBootScreen({ onComplete }) {
 
   return (
     <Wrapper $fading={fading}>
-      <ContentWrapper>
-        <LogoProgressbar>
-          <LogoImg src="/boot/xp-logo.jpg" alt="" />
-          <LoaderTrack ref={loaderRef}>
-            <BlockContainer>
-              <Block>
-                <BlockHighlight />
-              </Block>
-              <Block>
-                <BlockHighlight />
-              </Block>
-              <Block>
-                <BlockHighlight />
-              </Block>
-            </BlockContainer>
-          </LoaderTrack>
-        </LogoProgressbar>
-        <CopyrightsWrapper>
-          <Copyright>
-            Copyrights <CopyrightStrong>&copy;</CopyrightStrong> Microsoft
-            Corporation
-          </Copyright>
-          <MicrosoftLogo src="/boot/microsoft-logo.webp" alt="Microsoft" />
-        </CopyrightsWrapper>
-      </ContentWrapper>
+      <LogoProgressbar>
+        <LogoImg src="/boot/xp-logo.jpg" alt="" />
+        <LoaderTrack ref={loaderRef}>
+          <BlockContainer>
+            <Block>
+              <BlockHighlight />
+            </Block>
+            <Block>
+              <BlockHighlight />
+            </Block>
+            <Block>
+              <BlockHighlight />
+            </Block>
+          </BlockContainer>
+        </LoaderTrack>
+      </LogoProgressbar>
+      <CopyrightsWrapper>
+        <Copyright>
+          Copyrights <CopyrightStrong>&copy;</CopyrightStrong> Microsoft
+          Corporation
+        </Copyright>
+        <MicrosoftLogo src="/boot/microsoft-logo.webp" alt="Microsoft" />
+      </CopyrightsWrapper>
     </Wrapper>
   );
 }
