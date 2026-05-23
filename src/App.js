@@ -10,6 +10,27 @@ import WinXP from 'WinXP';
 const DrawingsAdminPage = lazy(() => import('./admin/DrawingsAdminPage'));
 const MobileSite = lazy(() => import('./mobile-site/index'));
 
+/* Pre-fetch commission full-size images into the browser cache
+   so popups open instantly after the preloader dismisses. */
+function prefetchCommissionImages() {
+  fetch('/api/commissions/public', { cache: 'no-store' })
+    .then(r => r.json())
+    .then(data => {
+      (data.commissions || []).forEach(c => {
+        const urls = [c.imageUrl];
+        if (Array.isArray(c.imageVariants)) {
+          urls.push(...c.imageVariants);
+        }
+        urls.forEach(url => {
+          if (!url) return;
+          const img = new Image();
+          img.src = url;
+        });
+      });
+    })
+    .catch(() => {});
+}
+
 const App = () => {
   const isAdminRoute = window.location.pathname.startsWith('/admin/drawings');
   const isLayoutRoute = window.location.pathname.startsWith('/layout');
@@ -19,6 +40,10 @@ const App = () => {
   const [booting, setBooting] = useState(true);
 
   const handleBootComplete = useCallback(() => setBooting(false), []);
+
+  useEffect(() => {
+    prefetchCommissionImages();
+  }, []);
 
   useEffect(() => {
     if (isAdminRoute) {
