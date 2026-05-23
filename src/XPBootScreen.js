@@ -27,9 +27,9 @@ const Wrapper = styled.div`
   overflow: hidden;
   cursor: default;
   font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-  pointer-events: ${(p) => (p.$fading ? 'none' : 'auto')};
+  pointer-events: ${p => (p.$fading ? 'none' : 'auto')};
 
-  ${(p) =>
+  ${p =>
     p.$fading
       ? css`
           animation: ${fadeOut} 0.4s ease forwards;
@@ -246,8 +246,7 @@ function XPBootScreen({ onComplete }) {
         </LogoProgressbar>
         <CopyrightsWrapper>
           <Copyright>
-            Copyrights{' '}
-            <CopyrightStrong>&copy;</CopyrightStrong> Microsoft Corporation
+            Copyrights <CopyrightStrong>&copy;</CopyrightStrong> Microsoft Corporation
           </Copyright>
           <MicrosoftWatermark>Microsoft</MicrosoftWatermark>
         </CopyrightsWrapper>

@@ -3,12 +3,12 @@ import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { getBootExperience } from './app-mode';
 import XPBootScreen from './XPBootScreen';
 
-const DrawingsAdminPage = lazy(() => import('./admin/DrawingsAdminPage'));
-const MobileSite = lazy(() => import('./mobile-site/index'));
-
 /* WinXP is imported eagerly so it mounts and fetches commissions
    while the boot screen is still visible. */
 import WinXP from 'WinXP';
+
+const DrawingsAdminPage = lazy(() => import('./admin/DrawingsAdminPage'));
+const MobileSite = lazy(() => import('./mobile-site/index'));
 
 const App = () => {
   const isAdminRoute = window.location.pathname.startsWith('/admin/drawings');
