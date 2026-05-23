@@ -153,14 +153,92 @@ function XPBootScreen({ onComplete }) {
 
   useEffect(() => {
     if (!onComplete) return;
-    const timer = setTimeout(() => {
+
+    /* Pre-fetch commission images so they're cached when the
+       desktop appears.  Resolve once all are done (or after a
+       hard timeout so the preloader never hangs). */
+    const MIN_DISPLAY = 2200;
+    const HARD_TIMEOUT = 8000;
+
+    let settled = false;
+    let imagesReady = false;
+    const mountTime = Date.now();
+
+    const tryFinish = () => {
+      if (settled || !imagesReady) return;
+      const elapsed = Date.now() - mountTime;
+      const remaining = Math.max(0, MIN_DISPLAY - elapsed);
+      if (remaining > 0) {
+        setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          setFading(true);
+          setTimeout(() => {
+            if (onComplete) onComplete();
+          }, 400);
+        }, remaining);
+      } else {
+        settled = true;
+        setFading(true);
+        setTimeout(() => {
+          if (onComplete) onComplete();
+        }, 400);
+      }
+    };
+
+    const hardTimer = setTimeout(() => {
+      settled = true;
       setFading(true);
-      /* Wait for fade-out animation to finish, then signal ready */
       setTimeout(() => {
         if (onComplete) onComplete();
       }, 400);
-    }, 2200);
-    return () => clearTimeout(timer);
+    }, HARD_TIMEOUT);
+
+    fetch('/api/commissions/public', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(data => {
+        const commissions = data.commissions || [];
+        if (commissions.length === 0) {
+          imagesReady = true;
+          tryFinish();
+          return;
+        }
+
+        const urls = [];
+        commissions.forEach(c => {
+          if (c.iconUrl) urls.push(c.iconUrl);
+          if (c.imageUrl) urls.push(c.imageUrl);
+          if (Array.isArray(c.imageVariants)) {
+            urls.push(...c.imageVariants.filter(Boolean));
+          }
+        });
+
+        let loaded = 0;
+        const target = urls.length;
+        const onDone = () => {
+          loaded++;
+          if (loaded >= target) {
+            imagesReady = true;
+            tryFinish();
+          }
+        };
+
+        urls.forEach(url => {
+          const img = new Image();
+          img.onload = onDone;
+          img.onerror = onDone;
+          img.src = url;
+        });
+      })
+      .catch(() => {
+        imagesReady = true;
+        tryFinish();
+      });
+
+    return () => {
+      settled = true;
+      clearTimeout(hardTimer);
+    };
   }, [onComplete]);
 
   return (
