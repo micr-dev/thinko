@@ -246,7 +246,8 @@ function XPBootScreen({ onComplete }) {
         </LogoProgressbar>
         <CopyrightsWrapper>
           <Copyright>
-            Copyrights <CopyrightStrong>&copy;</CopyrightStrong> Microsoft Corporation
+            Copyrights <CopyrightStrong>&copy;</CopyrightStrong>{' '}
+            Microsoft Corporation
           </Copyright>
           <MicrosoftWatermark>Microsoft</MicrosoftWatermark>
         </CopyrightsWrapper>
