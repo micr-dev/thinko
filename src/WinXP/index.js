@@ -39,6 +39,46 @@ import Windows from './Windows';
 import Icons from './Icons';
 import { playStartupSoundOnce, playXpSound } from './xp-sounds';
 import { DashedBox } from 'components';
+import commissionPlacement from './apps/commission-placement.json';
+
+const COMMISSION_ROWS_PER_COLUMN =
+  Number(commissionPlacement.rowsPerColumn) || 11;
+const COMMISSION_RANDOM_AREA = commissionPlacement.randomArea || {};
+const COMMISSION_RANDOM_START_ROW =
+  Number(COMMISSION_RANDOM_AREA.startRow) || 1;
+const COMMISSION_RANDOM_END_ROW = Number(COMMISSION_RANDOM_AREA.endRow) || 8;
+const COMMISSION_RANDOM_START_COLUMN =
+  Number(COMMISSION_RANDOM_AREA.startColumn) || 4;
+const COMMISSION_RANDOM_END_COLUMN =
+  Number(COMMISSION_RANDOM_AREA.endColumn) || 16;
+
+function shuffleCommissionGridIndexes(icons) {
+  const indexes = [];
+  for (
+    let column = COMMISSION_RANDOM_START_COLUMN;
+    column <= COMMISSION_RANDOM_END_COLUMN;
+    column += 1
+  ) {
+    for (
+      let row = COMMISSION_RANDOM_START_ROW;
+      row <= COMMISSION_RANDOM_END_ROW;
+      row += 1
+    ) {
+      indexes.push((column - 1) * COMMISSION_ROWS_PER_COLUMN + (row - 1));
+    }
+  }
+
+  // Fisher-Yates shuffle the available positions
+  for (let i = indexes.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indexes[i], indexes[j]] = [indexes[j], indexes[i]];
+  }
+
+  return icons.map((icon, i) => ({
+    ...icon,
+    gridIndex: indexes[i % indexes.length],
+  }));
+}
 
 import COMMISSION_RANDOM_AREA from './apps/commission-placement.json';
 

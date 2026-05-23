@@ -68,6 +68,23 @@ export function buildCommissionDesktopIcon(commission) {
   const windowWidth = Math.min(Math.max(previewWidth + 260, 620), 1080);
   const windowHeight = Math.min(Math.max(previewHeight + 190, 500), 940);
 
+  let resolvedImageUrl = commission.imageUrl;
+  if (
+    Array.isArray(commission.imageVariants) &&
+    commission.imageVariants.length
+  ) {
+    const pick =
+      commission.imageVariants[
+        Math.floor(Math.random() * commission.imageVariants.length)
+      ];
+    resolvedImageUrl = pick;
+  }
+
+  const resolvedCommission = {
+    ...commission,
+    imageUrl: resolvedImageUrl,
+  };
+
   return {
     id: hashCommissionId(commission.id),
     icon: commission.iconUrl || picture,
@@ -83,7 +100,7 @@ export function buildCommissionDesktopIcon(commission) {
       },
       component: CommissionViewer,
       injectProps: {
-        commission,
+        commission: resolvedCommission,
       },
       defaultSize: {
         width: windowWidth,
