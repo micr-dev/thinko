@@ -1,44 +1,67 @@
-import React, { useEffect, useRef } from 'react';
-import styled, { keyframes } from 'styled-components';
+import React, { useEffect, useRef, useState } from 'react';
+import styled, { keyframes, css } from 'styled-components';
 
-/* Progress bar blocks slide from left to right, wrapping around */
-const blockSlide = keyframes`
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(calc(100% + 40px)); }
-`;
-
-/* Subtle fade-in on mount */
 const fadeIn = keyframes`
   0%   { opacity: 0; }
   100% { opacity: 1; }
 `;
 
+const fadeOut = keyframes`
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+`;
+
 const Wrapper = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100vw;
   height: 100dvh;
   background-color: #000;
+  z-index: 9999;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  animation: ${fadeIn} 0.2s ease;
   user-select: none;
   overflow: hidden;
   cursor: default;
   font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+  pointer-events: ${(p) => (p.$fading ? 'none' : 'auto')};
+
+  ${(p) =>
+    p.$fading
+      ? css`
+          animation: ${fadeOut} 0.4s ease forwards;
+        `
+      : css`
+          animation: ${fadeIn} 0.2s ease;
+        `}
 `;
 
-const Center = styled.div`
-  width: 50%;
-  max-width: 380px;
-  text-align: center;
-  line-height: 1;
+const ContentWrapper = styled.div`
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-top: 229px;
+  padding-bottom: 69px;
+  display: flex;
+`;
+
+const LogoProgressbar = styled.div`
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding-top: 50px;
+  padding-bottom: 50px;
+  display: flex;
 `;
 
 const LogoImg = styled.img`
-  width: 70%;
+  width: 200px;
   display: block;
-  margin: 0 auto -28px;
+  margin: 0 auto -12px;
 `;
 
 const MicrosoftText = styled.span`
@@ -68,64 +91,74 @@ const XPText = styled.span`
 `;
 
 const LoaderTrack = styled.div`
-  position: relative;
-  width: 70%;
-  max-height: 20px;
-  height: 3vh;
-  padding: 3px 2px;
-  margin: 10% auto 5%;
-  border: 1px solid #999;
-  border-radius: 4px;
+  width: 220px;
+  height: 20px;
+  border: 1px solid #b1b1b3;
+  border-radius: 5px;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 2px 4px;
+  display: flex;
   overflow: hidden;
+  margin-top: 50px;
 `;
 
 const BlockContainer = styled.div`
   display: flex;
-  gap: 2px;
-  animation: ${blockSlide} 1.6s ease-in-out infinite;
+  gap: 4px;
 `;
 
 const Block = styled.div`
-  width: 8px;
-  height: calc(3vh - 6px);
-  max-height: 12px;
-  background: linear-gradient(
-    #7b9cf1 0%,
-    #708cf1 40%,
-    #3355cc 70%,
-    #2838c7 100%
-  );
-  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  background-color: #2c38b9;
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
 `;
 
-const BottomRow = styled.div`
+const BlockHighlight = styled.div`
+  height: 4px;
+  background-color: #7f9ffe;
   position: absolute;
-  bottom: 12.5%;
+  top: 18%;
   left: 0;
   right: 0;
-  padding: 0 7.5%;
-  display: flex;
+`;
+
+const CopyrightsWrapper = styled.div`
+  width: 100%;
+  height: auto;
   justify-content: space-between;
   align-items: center;
+  padding: 32px 8%;
+  display: flex;
   box-sizing: border-box;
 `;
 
 const Copyright = styled.span`
-  color: #bbb;
-  font-size: 11px;
-  font-family: Arial, sans-serif;
+  color: #d1d1d1;
+  letter-spacing: -0.5px;
+  font-size: 10px;
+  font-family: 'Franklin Gothic Medium', Arial, sans-serif;
+`;
+
+const CopyrightStrong = styled.strong`
+  font-weight: bold;
 `;
 
 const MicrosoftWatermark = styled.span`
-  color: #bbb;
-  font-size: 11px;
-  font-family: Arial, sans-serif;
-  font-weight: bold;
+  color: #d1d1d1;
+  font-size: 10px;
+  font-family: 'Franklin Gothic Medium', Arial, sans-serif;
   font-style: italic;
+  font-weight: bold;
+  opacity: 0.8;
 `;
 
-/* Minimal inline SVG of the Windows XP flag — just the 4 color squares */
-const FLAG_SVG = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="200">
+const FLAG_SVG = `data:image/svg+xml,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
   <defs>
     <linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FF5A5A"/><stop offset="100%" stop-color="#CC2222"/></linearGradient>
     <linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5ED64A"/><stop offset="100%" stop-color="#2D9A10"/></linearGradient>
@@ -136,54 +169,89 @@ const FLAG_SVG = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://ww
   <rect x="43" y="1" width="36" height="36" rx="3" fill="url(#b)"/>
   <rect x="1" y="43" width="36" height="36" rx="3" fill="url(#c)"/>
   <rect x="43" y="43" width="36" height="36" rx="3" fill="url(#d)"/>
-</svg>`)}`;
+</svg>`,
+)}`;
 
-function XPBootScreen() {
+function XPBootScreen({ onComplete }) {
   const loaderRef = useRef(null);
+  const [fading, setFading] = useState(false);
 
   useEffect(() => {
     if (!loaderRef.current) return;
-    const container = loaderRef.current;
-    const width = container.offsetWidth;
+    const track = loaderRef.current;
+    const trackWidth = track.offsetWidth;
+    const blockGroupWidth = 3 * 12 + 2 * 4; /* 3 blocks + 2 gaps */
+    const minX = -blockGroupWidth;
+    const maxX = trackWidth;
+    let pos = minX;
+    let dir = 1;
 
-    let pos = 0;
-    const speed = 1;
     const interval = setInterval(() => {
-      pos += speed;
-      if (pos >= width) pos = 0;
-      if (container.firstElementChild) {
-        container.firstElementChild.style.transform = `translateX(${pos}px)`;
+      pos += dir * 1;
+      if (pos >= maxX) {
+        pos = maxX;
+        dir = -1;
+      }
+      if (pos <= minX) {
+        pos = minX;
+        dir = 1;
+      }
+      if (track.firstElementChild) {
+        track.firstElementChild.style.transform = `translateX(${pos}px)`;
       }
     }, 10);
 
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (!onComplete) return;
+    const timer = setTimeout(() => {
+      setFading(true);
+      /* Wait for fade-out animation to finish, then signal ready */
+      setTimeout(() => {
+        if (onComplete) onComplete();
+      }, 400);
+    }, 2200);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
   return (
-    <Wrapper>
-      <Center>
-        <LogoImg src={FLAG_SVG} alt="" />
-        <div>
-          <MicrosoftText>
-            Microsoft<Reg>&reg;</Reg>
-          </MicrosoftText>
-        </div>
-        <div>
-          <WindowsText>Windows</WindowsText>
-          <XPText>xp</XPText>
-        </div>
-        <LoaderTrack ref={loaderRef}>
-          <BlockContainer>
-            <Block />
-            <Block />
-            <Block />
-          </BlockContainer>
-        </LoaderTrack>
-      </Center>
-      <BottomRow>
-        <Copyright>Copyright &copy; Microsoft Corporation</Copyright>
-        <MicrosoftWatermark>Microsoft</MicrosoftWatermark>
-      </BottomRow>
+    <Wrapper $fading={fading}>
+      <ContentWrapper>
+        <LogoProgressbar>
+          <LogoImg src={FLAG_SVG} alt="" />
+          <div>
+            <MicrosoftText>
+              Microsoft<Reg>&reg;</Reg>
+            </MicrosoftText>
+          </div>
+          <div>
+            <WindowsText>Windows</WindowsText>
+            <XPText>xp</XPText>
+          </div>
+          <LoaderTrack ref={loaderRef}>
+            <BlockContainer>
+              <Block>
+                <BlockHighlight />
+              </Block>
+              <Block>
+                <BlockHighlight />
+              </Block>
+              <Block>
+                <BlockHighlight />
+              </Block>
+            </BlockContainer>
+          </LoaderTrack>
+        </LogoProgressbar>
+        <CopyrightsWrapper>
+          <Copyright>
+            Copyrights{' '}
+            <CopyrightStrong>&copy;</CopyrightStrong> Microsoft Corporation
+          </Copyright>
+          <MicrosoftWatermark>Microsoft</MicrosoftWatermark>
+        </CopyrightsWrapper>
+      </ContentWrapper>
     </Wrapper>
   );
 }

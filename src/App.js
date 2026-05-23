@@ -1,13 +1,14 @@
-import React, { Suspense, lazy, useEffect, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 
 import { getBootExperience } from './app-mode';
 import XPBootScreen from './XPBootScreen';
 
 const DrawingsAdminPage = lazy(() => import('./admin/DrawingsAdminPage'));
 const MobileSite = lazy(() => import('./mobile-site/index'));
-const WinXP = lazy(() => import('WinXP'));
 
-const BOOT_DURATION = 2000;
+/* WinXP is imported eagerly so it mounts and fetches commissions
+   while the boot screen is still visible. */
+import WinXP from 'WinXP';
 
 const App = () => {
   const isAdminRoute = window.location.pathname.startsWith('/admin/drawings');
@@ -17,10 +18,7 @@ const App = () => {
   );
   const [booting, setBooting] = useState(true);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setBooting(false), BOOT_DURATION);
-    return () => clearTimeout(timer);
-  }, []);
+  const handleBootComplete = useCallback(() => setBooting(false), []);
 
   useEffect(() => {
     if (isAdminRoute) {
@@ -35,10 +33,6 @@ const App = () => {
 
     document.title = 'thinko';
   }, [isAdminRoute, isLayoutRoute]);
-
-  if (booting) {
-    return <XPBootScreen />;
-  }
 
   if (isAdminRoute) {
     return (
@@ -56,10 +50,13 @@ const App = () => {
     );
   }
 
+  /* Render desktop immediately behind the boot screen overlay so
+     images and API data load during the preloader animation. */
   return (
-    <Suspense fallback={<XPBootScreen />}>
+    <>
+      {booting && <XPBootScreen onComplete={handleBootComplete} />}
       <WinXP enableLayoutDebug={isLayoutRoute} />
-    </Suspense>
+    </>
   );
 };
 
