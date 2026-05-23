@@ -26,7 +26,6 @@ const Wrapper = styled.div`
   user-select: none;
   overflow: hidden;
   cursor: default;
-  font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
   pointer-events: ${p => (p.$fading ? 'none' : 'auto')};
 
   ${p =>
@@ -59,35 +58,9 @@ const LogoProgressbar = styled.div`
 `;
 
 const LogoImg = styled.img`
-  width: 200px;
+  width: 245px;
   display: block;
-  margin: 0 auto -12px;
-`;
-
-const MicrosoftText = styled.span`
-  font-size: 18px;
-  color: #fff;
-`;
-
-const Reg = styled.sup`
-  font-size: 9px;
-  font-weight: bold;
-`;
-
-const WindowsText = styled.span`
-  font-size: 44px;
-  font-weight: bold;
-  color: #fff;
-  display: inline;
-`;
-
-const XPText = styled.span`
-  font-size: 44px;
-  font-weight: bold;
-  color: #ff3c00;
-  display: inline;
-  margin-left: 6px;
-  letter-spacing: -1px;
+  margin: 0 auto;
 `;
 
 const LoaderTrack = styled.div`
@@ -148,29 +121,10 @@ const CopyrightStrong = styled.strong`
   font-weight: bold;
 `;
 
-const MicrosoftWatermark = styled.span`
-  color: #d1d1d1;
-  font-size: 10px;
-  font-family: 'Franklin Gothic Medium', Arial, sans-serif;
-  font-style: italic;
-  font-weight: bold;
+const MicrosoftLogo = styled.img`
+  height: 13px;
   opacity: 0.8;
 `;
-
-const FLAG_SVG = `data:image/svg+xml,${encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
-  <defs>
-    <linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FF5A5A"/><stop offset="100%" stop-color="#CC2222"/></linearGradient>
-    <linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5ED64A"/><stop offset="100%" stop-color="#2D9A10"/></linearGradient>
-    <linearGradient id="c" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5A9AFF"/><stop offset="100%" stop-color="#2244CC"/></linearGradient>
-    <linearGradient id="d" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFB830"/><stop offset="100%" stop-color="#EE8800"/></linearGradient>
-  </defs>
-  <rect x="1" y="1" width="36" height="36" rx="3" fill="url(#a)"/>
-  <rect x="43" y="1" width="36" height="36" rx="3" fill="url(#b)"/>
-  <rect x="1" y="43" width="36" height="36" rx="3" fill="url(#c)"/>
-  <rect x="43" y="43" width="36" height="36" rx="3" fill="url(#d)"/>
-</svg>`,
-)}`;
 
 function XPBootScreen({ onComplete }) {
   const loaderRef = useRef(null);
@@ -220,16 +174,7 @@ function XPBootScreen({ onComplete }) {
     <Wrapper $fading={fading}>
       <ContentWrapper>
         <LogoProgressbar>
-          <LogoImg src={FLAG_SVG} alt="" />
-          <div>
-            <MicrosoftText>
-              Microsoft<Reg>&reg;</Reg>
-            </MicrosoftText>
-          </div>
-          <div>
-            <WindowsText>Windows</WindowsText>
-            <XPText>xp</XPText>
-          </div>
+          <LogoImg src="/boot/xp-logo.jpg" alt="" />
           <LoaderTrack ref={loaderRef}>
             <BlockContainer>
               <Block>
@@ -249,7 +194,10 @@ function XPBootScreen({ onComplete }) {
             Copyrights <CopyrightStrong>&copy;</CopyrightStrong> Microsoft
             Corporation
           </Copyright>
-          <MicrosoftWatermark>Microsoft</MicrosoftWatermark>
+          <MicrosoftLogo
+            src="/boot/microsoft-logo.webp"
+            alt="Microsoft"
+          />
         </CopyrightsWrapper>
       </ContentWrapper>
     </Wrapper>
