@@ -38,6 +38,7 @@ const {
   sendJson,
 } = require('./http');
 const { sendSubmissionNotification } = require('./ntfy');
+const staticCommissions = require('./static-commissions.json');
 
 const SUBMISSION_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const SUBMISSION_RATE_LIMIT_MAX = 5;
@@ -293,8 +294,24 @@ async function handleListPublicCommissions(req, res) {
   noStore(res);
 
   try {
+    let dynamicCommissions = [];
+    try {
+      dynamicCommissions = await getPublicCommissions();
+    } catch (error) {
+      // If Blob-backed commissions are unavailable, still serve static commissions.
+      // Log the failure so production issues remain visible.
+      // eslint-disable-next-line no-console
+      console.error('Failed to load dynamic commissions:', error.message);
+    }
+
+    const dynamicIds = new Set(dynamicCommissions.map(entry => entry.id));
+    const merged = [
+      ...dynamicCommissions,
+      ...staticCommissions.filter(entry => !dynamicIds.has(entry.id)),
+    ];
+
     sendJson(res, 200, {
-      commissions: await getPublicCommissions(),
+      commissions: merged,
     });
   } catch (error) {
     sendError(
