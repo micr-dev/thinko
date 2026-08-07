@@ -24,5 +24,18 @@
     "mimeType": "image/webp",
     "width": 1280,
     "height": 1280
+  },
+  {
+    "id": "static_taibe_20260807",
+    "artistName": "Taibe",
+    "artistLink": "https://vgen.co/Taibe",
+    "date": "2026-08-07",
+    "description": "",
+    "gridIndex": null,
+    "imageUrl": "/custom/commissions/taibe-2026-08-07.webp",
+    "iconUrl": "/custom/commissions/icons/taibe-2026-08-07.png",
+    "mimeType": "image/webp",
+    "width": 2048,
+    "height": 2048
   }
 ]
